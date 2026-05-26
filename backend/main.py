@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import init_db, store_feedback
+from i18n import _t, normalize_lang
 from models import FeedbackRequest, PlanRequest, PlanResponse, PlanStop
 
 load_dotenv()
@@ -301,6 +302,7 @@ def _make_lunch_stop(
     arrival_hour: float,
     car: dict,
     km_pos: float | None = None,
+    lang: str = "ca",
 ) -> tuple[PlanStop, float, float]:
     """
     Construeix una parada de dinar amb càrrega.
@@ -313,8 +315,8 @@ def _make_lunch_stop(
         dep_hour = arrival_hour + 0.75
         return PlanStop(
             type="lunch",
-            name="Parada a dinar",
-            description=f"45 min de descans. Bateria suficient ({soc_from}%), sense necessitat de carregar.",
+            name=_t(lang, "lunch_name"),
+            description=_t(lang, "lunch_high_soc_desc", soc=soc_from),
             arrival_time=_fmt(arrival_hour),
             departure_time=_fmt(dep_hour),
             battery_arrival=soc_from,
@@ -332,17 +334,18 @@ def _make_lunch_stop(
     if charger and charger.get("lat") and charger.get("lon"):
         restaurant = _find_restaurant(charger["lat"], charger["lon"])
 
-    op = (charger or {}).get("operator") or (charger or {}).get("name") or "Carregador DC"
+    op = (charger or {}).get("operator") or (charger or {}).get("name") or _t(lang, "charger_fallback")
     kw_str = f"{charger['power_kw']} kW" if charger else "DC"
+    walk_label = _t(lang, "walk_min_label")
 
     if restaurant:
         name     = restaurant["name"]
         rat      = f"Valoració {restaurant['rating']} · " if restaurant.get("rating") else ""
-        walk_str = f"{int(restaurant['walk_min'])} min a peu · " if restaurant.get("walk_min") else ""
+        walk_str = f"{int(restaurant['walk_min'])} {walk_label} · " if restaurant.get("walk_min") else ""
         desc     = f"{rat}{walk_str}{op} {kw_str} · {c_min} min ({soc_from}% → 80%)"
     else:
-        name = "Dinar amb càrrega"
-        desc = f"{op} {kw_str} · {c_min} min ({soc_from}% → 80%) · mentre dineu."
+        name = _t(lang, "lunch_charge_name")
+        desc = f"{op} {kw_str} · {c_min} min ({soc_from}% → 80%)"
 
     stop = PlanStop(
         type="lunch",
@@ -397,6 +400,7 @@ def _make_hotel_stop(
     km_pos: float,
     soc_arrival: int,
     arrival_hour: float,
+    lang: str = "ca",
 ) -> PlanStop | None:
     """
     Cerca hotel + carregador accessible a peu. Retorna None si no en troba cap combo vàlid.
@@ -432,12 +436,13 @@ def _make_hotel_stop(
         location = (parts[-2].strip() if len(parts) >= 2 else parts[0].strip()) or None
         kw       = charger_near["power_kw"]
         op       = charger_near.get("operator") or charger_near["name"]
-        walk_str = f"{int(walk_min)} min a peu · " if walk_min else ""
+        wm       = int(walk_min) if walk_min else "?"
+        desc     = _t(lang, "hotel_desc", hotel=hotel["name"], walk_min=wm, charger=f"{op} {kw} kW")
 
         return PlanStop(
             type="hotel",
             name=name,
-            description=f"{op} {kw} kW · {walk_str}Bateria plena al matí.",
+            description=desc,
             location=location,
             arrival_time=_fmt(arrival_hour),
             departure_time="09:00",
@@ -453,13 +458,14 @@ def _make_hotel_stop(
     return None  # cap hotel proper té carregador accessible a peu
 
 
-def _charger_desc(charger: dict | None, c_min: int, from_soc: int, to_soc: int) -> tuple[str, str | None]:
+def _charger_desc(charger: dict | None, c_min: int, from_soc: int, to_soc: int, lang: str = "ca") -> tuple[str, str | None]:
     if charger:
         op   = charger["operator"] or charger["name"]
         desc = f"{op} · {charger['power_kw']} kW · {c_min} min ({from_soc}% → {to_soc}%)"
         loc  = charger["town"] or None
     else:
-        desc = f"Carregador DC · {c_min} min ({from_soc}% → {to_soc}%)"
+        fb   = _t(lang, "charger_fallback")
+        desc = f"{fb} · {c_min} min ({from_soc}% → {to_soc}%)"
         loc  = None
     return desc, loc
 
@@ -488,6 +494,7 @@ def _drive_segment(
     avg_speed: float,
     route_coords: list | None = None,
     max_charges: int = 4,
+    lang: str = "ca",
 ) -> tuple[bool, float, int, float, float]:
     km_per_pct = car["range_km"] / 85
     cur_km, cur_soc, cur_hour = start_km, start_soc, start_hour
@@ -521,10 +528,10 @@ def _drive_segment(
         else:
             stop_lat, stop_lon = None, None
 
-        desc, loc = _charger_desc(charger, c_min, 20, 80)
+        desc, loc = _charger_desc(charger, c_min, 20, 80, lang)
         stops_out.append(PlanStop(
             type="charge",
-            name="Càrrega DC",
+            name=_t(lang, "charge_name"),
             description=desc,
             location=loc,
             arrival_time=_fmt(charge_hour),
@@ -566,6 +573,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
     except httpx.RequestError:
         raise HTTPException(502, "No s'ha pogut connectar amb l'API de rutes")
 
+    lang       = normalize_lang(req.lang)
     car        = CAR[req.car_category]
     dep_hour   = DEPARTURE_HOUR[req.departure_window]
     lunch_mid  = LUNCH_MID.get(req.lunch_window)
@@ -577,8 +585,8 @@ def create_plan(req: PlanRequest) -> PlanResponse:
 
     stops.append(PlanStop(
         type="start",
-        name=f"Sortida de {req.origin}",
-        description="Bateria carregada al màxim.",
+        name=_t(lang, "start_name", origin=req.origin),
+        description=_t(lang, "start_desc"),
         arrival_time=_fmt(dep_hour),
         departure_time=_fmt(dep_hour),
         battery_departure=START_SOC,
@@ -599,8 +607,8 @@ def create_plan(req: PlanRequest) -> PlanResponse:
                 _llon, _llat = _coords_at_km(rc, km_lunch) if rc else (None, None)
                 stops.append(PlanStop(
                     type="lunch",
-                    name="Parada a dinar",
-                    description="45 min de descans. No cal carregar.",
+                    name=_t(lang, "lunch_name"),
+                    description=_t(lang, "lunch_no_charge_desc"),
                     arrival_time=_fmt(lunch_mid - 0.375),
                     departure_time=_fmt(lunch_mid + 0.375),
                     battery_arrival=soc_l,
@@ -615,8 +623,8 @@ def create_plan(req: PlanRequest) -> PlanResponse:
         soc_dest = max(10, _soc_after(START_SOC, dist_km, car))
         stops.append(PlanStop(
             type="destination",
-            name=f"Arribada a {req.destination}",
-            description="Fi del viatge.",
+            name=_t(lang, "destination_name", dest=req.destination),
+            description=_t(lang, "destination_desc"),
             arrival_time=_fmt(arr_hour),
             battery_arrival=soc_dest,
             lat=dest_ll[1],
@@ -628,7 +636,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
             total_duration_minutes=total_min,
             estimated_charge_cost_eur=0.0,
             stops=stops,
-            notes=f"El teu cotxe arriba a {req.destination} sense necessitat de carregar (bateria estimada: ~{soc_dest}%).",
+            notes=_t(lang, "note_no_charge", dest=req.destination, soc=soc_dest),
             route_polyline=_simplify_route(rc) if rc else None,
         )
 
@@ -643,7 +651,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
             # B-a: arriba al dinar amb bateria → dinar = parada de càrrega + restaurant
             charger, kw_real = _resolve_charger(rc, km_to_lunch)
             lunch_stop, c_kwh, lunch_end = _make_lunch_stop(
-                charger, kw_real, soc_at_lunch, lunch_mid - 0.5, car, km_pos=round(km_to_lunch, 1)
+                charger, kw_real, soc_at_lunch, lunch_mid - 0.5, car, km_pos=round(km_to_lunch, 1), lang=lang
             )
             total_dc_kwh += c_kwh
             stops.append(lunch_stop)
@@ -671,11 +679,11 @@ def create_plan(req: PlanRequest) -> PlanResponse:
             else:
                 _slat, _slon = None, None
 
-            desc, loc = _charger_desc(charger, c_min, 20, target_precharge)
+            desc, loc = _charger_desc(charger, c_min, 20, target_precharge, lang)
             stops.append(PlanStop(
                 type="charge",
-                name="Càrrega breu (pre-dinar)",
-                description=desc + " Càrrega principal durant el dinar.",
+                name=_t(lang, "pre_lunch_charge_name"),
+                description=desc + _t(lang, "pre_lunch_charge_suffix"),
                 location=loc,
                 arrival_time=_fmt(stop_hour),
                 departure_time=_fmt(charge_end),
@@ -701,7 +709,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
                 charger2, kw_real2 = _resolve_charger(rc, cur_km + km_to_lunch_now)
                 lunch_stop, c_kwh2, lunch_end = _make_lunch_stop(
                     charger2, kw_real2, max(10, soc_at_lunch_now), lunch_arrival, car,
-                    km_pos=round(cur_km + km_to_lunch_now, 1),
+                    km_pos=round(cur_km + km_to_lunch_now, 1), lang=lang,
                 )
                 total_dc_kwh += c_kwh2
                 stops.append(lunch_stop)
@@ -714,8 +722,8 @@ def create_plan(req: PlanRequest) -> PlanResponse:
                 _llon2, _llat2 = _coords_at_km(rc, cur_km + km_to_lunch_now) if rc else (None, None)
                 stops.append(PlanStop(
                     type="lunch",
-                    name="Parada a dinar",
-                    description="45 min de descans.",
+                    name=_t(lang, "lunch_name"),
+                    description=_t(lang, "lunch_simple_desc"),
                     arrival_time=_fmt(lunch_arrival),
                     departure_time=_fmt(lunch_end),
                     battery_arrival=soc_at_lunch_now,
@@ -736,7 +744,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
 
     while nights <= 5:  # límit de seguretat: màxim 5 pernoctacions
         arrived, fh, fs, fkm, extra_dc = _drive_segment(
-            stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc
+            stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc, lang=lang
         )
         total_dc_kwh += extra_dc
         active_min   += round((fh - day_start) * 60)
@@ -744,8 +752,8 @@ def create_plan(req: PlanRequest) -> PlanResponse:
         if arrived:
             stops.append(PlanStop(
                 type="destination",
-                name=f"Arribada a {req.destination}",
-                description="Fi del viatge.",
+                name=_t(lang, "destination_name", dest=req.destination),
+                description=_t(lang, "destination_desc"),
                 arrival_time=_fmt(fh),
                 battery_arrival=max(10, fs),
                 lat=dest_ll[1],
@@ -760,7 +768,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
             alt_km   = max(0.0, min(float(dist_km) - 1.0, fkm + km_offset))
             alt_hour = fh - km_offset / avg_speed
             alt_soc  = min(95, max(RESERVE_SOC, round(fs + km_offset / (car["range_km"] / 85))))
-            hotel_stop = _make_hotel_stop(rc, alt_km, alt_soc, alt_hour)
+            hotel_stop = _make_hotel_stop(rc, alt_km, alt_soc, alt_hour, lang=lang)
             if hotel_stop:
                 fkm = alt_km
                 break
@@ -786,9 +794,9 @@ def create_plan(req: PlanRequest) -> PlanResponse:
     if nights == 0:
         notes = None
     elif nights == 1:
-        notes = "Viatge de 2 dies. La durada indicada és el temps actiu (sense la nit a l'hotel)."
+        notes = _t(lang, "note_1night")
     else:
-        notes = f"Viatge de {nights + 1} dies. La durada indicada és el temps actiu (sense les nits a l'hotel)."
+        notes = _t(lang, "note_multinight", days=nights + 1)
 
     return PlanResponse(
         total_distance_km=dist_km,

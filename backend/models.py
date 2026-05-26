@@ -22,6 +22,7 @@ class PlanRequest(BaseModel):
     needs_overnight: Literal["yes", "no", "auto"] = Field(
         "auto", description="Si cal dormir pel camí"
     )
+    lang: Optional[str] = Field("ca", description="Codi d'idioma BCP-47, ex: 'ca', 'es', 'en'")
 
 
 class PlanStop(BaseModel):

@@ -561,73 +561,73 @@
 
   <header>
     <div class="wordmark">EasyEvTrip</div>
-    <h1>El viatge, no<br><em>el carregador</em></h1>
-    <p class="subtitle">Planifica al voltant del dinar i del son. Les parades de càrrega s'adapten a tu.</p>
+    <h1 data-i18n-h1></h1>
+    <p class="subtitle" data-i18n="subtitle"></p>
   </header>
 
   <div class="form-card fade-in">
     <form id="plan-form">
 
-      <div class="field-group-label">Ruta</div>
+      <div class="field-group-label" data-i18n="group_route"></div>
       <div class="field-row">
         <div class="field">
-          <label for="origin">Origen</label>
-          <input type="text" id="origin" value="Barcelona" placeholder="Ciutat de sortida" required>
+          <label for="origin" data-i18n="label_origin"></label>
+          <input type="text" id="origin" value="Barcelona" data-i18n-ph="ph_origin" required>
         </div>
         <div class="field">
-          <label for="destination">Destí</label>
-          <input type="text" id="destination" value="Sevilla" placeholder="Ciutat d'arribada" required>
+          <label for="destination" data-i18n="label_destination"></label>
+          <input type="text" id="destination" value="Sevilla" data-i18n-ph="ph_destination" required>
         </div>
       </div>
 
-      <div class="field-group-label">Cotxe</div>
+      <div class="field-group-label" data-i18n="group_car"></div>
       <div class="field">
-        <label for="car_category">Categoria de bateria</label>
+        <label for="car_category" data-i18n="label_car_category"></label>
         <select id="car_category" required>
-          <option value="compact">Compacte — Zoe, e-208, 500e (≈ 220 km útils)</option>
-          <option value="medium">Mitjà — MG4, Megane E-Tech, ID.3 (≈ 320 km útils)</option>
-          <option value="large" selected>Gran — Tesla M3 SR, EV6, Ioniq 5 (≈ 400 km útils)</option>
-          <option value="premium">Premium — Tesla MY LR, EQE, e-tron GT (≈ 470 km útils)</option>
+          <option value="compact" data-i18n="car_compact"></option>
+          <option value="medium"  data-i18n="car_medium"></option>
+          <option value="large" selected data-i18n="car_large"></option>
+          <option value="premium" data-i18n="car_premium"></option>
         </select>
       </div>
 
-      <div class="field-group-label">Horaris i preferències</div>
+      <div class="field-group-label" data-i18n="group_schedule"></div>
       <div class="field-row">
         <div class="field">
-          <label for="travel_date">Data del viatge</label>
+          <label for="travel_date" data-i18n="label_travel_date"></label>
           <input type="date" id="travel_date" required>
         </div>
         <div class="field">
-          <label for="departure_window">Hora de sortida</label>
+          <label for="departure_window" data-i18n="label_departure"></label>
           <select id="departure_window">
-            <option value="morning_early">Matí d'hora (7–9h)</option>
-            <option value="morning_late" selected>Mig matí (9–11h)</option>
-            <option value="afternoon">Tarda (15–17h)</option>
+            <option value="morning_early" data-i18n="dep_early"></option>
+            <option value="morning_late" selected data-i18n="dep_mid"></option>
+            <option value="afternoon" data-i18n="dep_afternoon"></option>
           </select>
         </div>
       </div>
       <div class="field-row">
         <div class="field">
-          <label for="lunch_window">Finestra de dinar</label>
+          <label for="lunch_window" data-i18n="label_lunch"></label>
           <select id="lunch_window">
             <option value="13_14">13:00 – 14:00</option>
             <option value="13_30_15" selected>13:30 – 15:00</option>
             <option value="14_15_30">14:00 – 15:30</option>
-            <option value="none">Sense parada a dinar</option>
+            <option value="none" data-i18n="lunch_none"></option>
           </select>
         </div>
         <div class="field">
-          <label for="needs_overnight">Pernoctació</label>
+          <label for="needs_overnight" data-i18n="label_overnight"></label>
           <select id="needs_overnight">
-            <option value="auto" selected>Decideix automàticament</option>
-            <option value="yes">Sí, vull pernoctar</option>
-            <option value="no">No, arribo el mateix dia</option>
+            <option value="auto" selected data-i18n="overnight_auto"></option>
+            <option value="yes" data-i18n="overnight_yes"></option>
+            <option value="no"  data-i18n="overnight_no"></option>
           </select>
         </div>
       </div>
 
       <button type="submit" id="submit-btn" class="submit-btn">
-        <span id="btn-label">Planifica el viatge</span>
+        <span id="btn-label" data-i18n="btn_plan"></span>
       </button>
 
     </form>
@@ -638,7 +638,7 @@
 
   <footer>
     <span>MVP · Fase 8 · Experimental</span>
-    <span>Sense comptes · Sense seguiment</span>
+    <span data-i18n="footer_privacy"></span>
   </footer>
 
 </div>
@@ -650,6 +650,208 @@
 <script>
   const BACKEND_URL = "https://easyevtrip.onrender.com";
   let _lastPayload = null;
+
+  // ── i18n ──────────────────────────────────────────────────────────────────
+  const TR = {
+    ca: {
+      h1_main: "El viatge, no", h1_em: "el carregador",
+      subtitle: "Planifica al voltant del dinar i del son. Les parades de càrrega s'adapten a tu.",
+      group_route: "Ruta", group_car: "Cotxe", group_schedule: "Horaris i preferències",
+      label_origin: "Origen", label_destination: "Destí",
+      ph_origin: "Ciutat de sortida", ph_destination: "Ciutat d'arribada",
+      label_car_category: "Categoria de bateria",
+      car_compact: "Compacte — Zoe, e-208, 500e (≈ 220 km útils)",
+      car_medium:  "Mitjà — MG4, Megane E-Tech, ID.3 (≈ 320 km útils)",
+      car_large:   "Gran — Tesla M3 SR, EV6, Ioniq 5 (≈ 400 km útils)",
+      car_premium: "Premium — Tesla MY LR, EQE, e-tron GT (≈ 470 km útils)",
+      label_travel_date: "Data del viatge", label_departure: "Hora de sortida",
+      dep_early: "Matí d'hora (7–9h)", dep_mid: "Mig matí (9–11h)", dep_afternoon: "Tarda (15–17h)",
+      label_lunch: "Finestra de dinar", lunch_none: "Sense parada a dinar",
+      label_overnight: "Pernoctació",
+      overnight_auto: "Decideix automàticament", overnight_yes: "Sí, vull pernoctar", overnight_no: "No, arribo el mateix dia",
+      btn_plan: "Planifica el viatge", btn_calculating: "Calculant…",
+      sum_distance: "Distància", sum_duration: "Durada", sum_active: "Temps actiu",
+      sum_nights: "Pernoctacions", sum_cost: "Cost càrrega",
+      unit_night: "nit", unit_nights: "nits",
+      type_start: "Sortida", type_charge: "Càrrega", type_lunch: "Dinar",
+      type_hotel: "Pernoctació", type_destination: "Arribada",
+      day_label: "Dia",
+      error_plan: "No s'ha pogut obtenir el pla",
+      footer_privacy: "Sense comptes · Sense seguiment",
+      fb_title: "T'ha estat útil?", fb_subtitle: "La teva valoració ajuda a millorar l'eina.",
+      fb_placeholder: "Alguna cosa a millorar? (opcional)",
+      fb_submit: "Envia la valoració", fb_thanks: "Gràcies! El teu feedback ajuda molt.",
+    },
+    es: {
+      h1_main: "El viaje, no", h1_em: "el cargador",
+      subtitle: "Planifica en torno a la comida y el sueño. Las paradas de carga se adaptan a ti.",
+      group_route: "Ruta", group_car: "Coche", group_schedule: "Horarios y preferencias",
+      label_origin: "Origen", label_destination: "Destino",
+      ph_origin: "Ciudad de salida", ph_destination: "Ciudad de llegada",
+      label_car_category: "Categoría de batería",
+      car_compact: "Compacto — Zoe, e-208, 500e (≈ 220 km útiles)",
+      car_medium:  "Medio — MG4, Megane E-Tech, ID.3 (≈ 320 km útiles)",
+      car_large:   "Grande — Tesla M3 SR, EV6, Ioniq 5 (≈ 400 km útiles)",
+      car_premium: "Premium — Tesla MY LR, EQE, e-tron GT (≈ 470 km útiles)",
+      label_travel_date: "Fecha del viaje", label_departure: "Hora de salida",
+      dep_early: "Mañana temprano (7–9h)", dep_mid: "Media mañana (9–11h)", dep_afternoon: "Tarde (15–17h)",
+      label_lunch: "Ventana de comida", lunch_none: "Sin parada para comer",
+      label_overnight: "Pernoctación",
+      overnight_auto: "Decidir automáticamente", overnight_yes: "Sí, quiero pernoctar", overnight_no: "No, llego el mismo día",
+      btn_plan: "Planificar el viaje", btn_calculating: "Calculando…",
+      sum_distance: "Distancia", sum_duration: "Duración", sum_active: "Tiempo activo",
+      sum_nights: "Pernoctaciones", sum_cost: "Coste de carga",
+      unit_night: "noche", unit_nights: "noches",
+      type_start: "Salida", type_charge: "Carga", type_lunch: "Comida",
+      type_hotel: "Pernoctación", type_destination: "Llegada",
+      day_label: "Día",
+      error_plan: "No se ha podido obtener el plan",
+      footer_privacy: "Sin cuentas · Sin seguimiento",
+      fb_title: "¿Te ha sido útil?", fb_subtitle: "Tu valoración ayuda a mejorar la herramienta.",
+      fb_placeholder: "¿Algo que mejorar? (opcional)",
+      fb_submit: "Enviar valoración", fb_thanks: "¡Gracias! Tu feedback ayuda mucho.",
+    },
+    en: {
+      h1_main: "The trip, not", h1_em: "the charger",
+      subtitle: "Plan around lunch and sleep. Charging stops adapt to you.",
+      group_route: "Route", group_car: "Car", group_schedule: "Schedule & preferences",
+      label_origin: "Origin", label_destination: "Destination",
+      ph_origin: "Departure city", ph_destination: "Arrival city",
+      label_car_category: "Battery category",
+      car_compact: "Compact — Zoe, e-208, 500e (≈ 220 km range)",
+      car_medium:  "Mid-size — MG4, Megane E-Tech, ID.3 (≈ 320 km range)",
+      car_large:   "Large — Tesla M3 SR, EV6, Ioniq 5 (≈ 400 km range)",
+      car_premium: "Premium — Tesla MY LR, EQE, e-tron GT (≈ 470 km range)",
+      label_travel_date: "Travel date", label_departure: "Departure time",
+      dep_early: "Early morning (7–9h)", dep_mid: "Mid-morning (9–11h)", dep_afternoon: "Afternoon (15–17h)",
+      label_lunch: "Lunch window", lunch_none: "No lunch stop",
+      label_overnight: "Overnight",
+      overnight_auto: "Decide automatically", overnight_yes: "Yes, I want to stay overnight", overnight_no: "No, arriving same day",
+      btn_plan: "Plan my trip", btn_calculating: "Calculating…",
+      sum_distance: "Distance", sum_duration: "Duration", sum_active: "Active time",
+      sum_nights: "Overnight stays", sum_cost: "Charge cost",
+      unit_night: "night", unit_nights: "nights",
+      type_start: "Departure", type_charge: "Charge", type_lunch: "Lunch",
+      type_hotel: "Overnight", type_destination: "Arrival",
+      day_label: "Day",
+      error_plan: "Could not get the plan",
+      footer_privacy: "No accounts · No tracking",
+      fb_title: "Was this useful?", fb_subtitle: "Your rating helps improve the tool.",
+      fb_placeholder: "Anything to improve? (optional)",
+      fb_submit: "Send rating", fb_thanks: "Thanks! Your feedback helps a lot.",
+    },
+    fr: {
+      h1_main: "Le voyage, pas", h1_em: "le chargeur",
+      subtitle: "Planifiez autour du déjeuner et du sommeil. Les arrêts de recharge s'adaptent à vous.",
+      group_route: "Itinéraire", group_car: "Voiture", group_schedule: "Horaires et préférences",
+      label_origin: "Origine", label_destination: "Destination",
+      ph_origin: "Ville de départ", ph_destination: "Ville d'arrivée",
+      label_car_category: "Catégorie de batterie",
+      car_compact: "Compacte — Zoe, e-208, 500e (≈ 220 km utiles)",
+      car_medium:  "Moyenne — MG4, Megane E-Tech, ID.3 (≈ 320 km utiles)",
+      car_large:   "Grande — Tesla M3 SR, EV6, Ioniq 5 (≈ 400 km utiles)",
+      car_premium: "Premium — Tesla MY LR, EQE, e-tron GT (≈ 470 km utiles)",
+      label_travel_date: "Date du voyage", label_departure: "Heure de départ",
+      dep_early: "Tôt le matin (7–9h)", dep_mid: "Milieu de matinée (9–11h)", dep_afternoon: "Après-midi (15–17h)",
+      label_lunch: "Créneau déjeuner", lunch_none: "Sans pause déjeuner",
+      label_overnight: "Nuitée",
+      overnight_auto: "Décider automatiquement", overnight_yes: "Oui, je veux dormir en route", overnight_no: "Non, j'arrive le même jour",
+      btn_plan: "Planifier le voyage", btn_calculating: "Calcul en cours…",
+      sum_distance: "Distance", sum_duration: "Durée", sum_active: "Temps actif",
+      sum_nights: "Nuitées", sum_cost: "Coût de recharge",
+      unit_night: "nuit", unit_nights: "nuits",
+      type_start: "Départ", type_charge: "Recharge", type_lunch: "Déjeuner",
+      type_hotel: "Nuitée", type_destination: "Arrivée",
+      day_label: "Jour",
+      error_plan: "Impossible d'obtenir le plan",
+      footer_privacy: "Sans comptes · Sans suivi",
+      fb_title: "Cela vous a-t-il été utile?", fb_subtitle: "Votre note aide à améliorer l'outil.",
+      fb_placeholder: "Quelque chose à améliorer? (optionnel)",
+      fb_submit: "Envoyer l'avis", fb_thanks: "Merci! Votre retour est très utile.",
+    },
+    it: {
+      h1_main: "Il viaggio, non", h1_em: "il caricatore",
+      subtitle: "Pianifica intorno al pranzo e al riposo. Le soste di ricarica si adattano a te.",
+      group_route: "Percorso", group_car: "Auto", group_schedule: "Orari e preferenze",
+      label_origin: "Origine", label_destination: "Destinazione",
+      ph_origin: "Città di partenza", ph_destination: "Città di arrivo",
+      label_car_category: "Categoria batteria",
+      car_compact: "Compatta — Zoe, e-208, 500e (≈ 220 km utili)",
+      car_medium:  "Media — MG4, Megane E-Tech, ID.3 (≈ 320 km utili)",
+      car_large:   "Grande — Tesla M3 SR, EV6, Ioniq 5 (≈ 400 km utili)",
+      car_premium: "Premium — Tesla MY LR, EQE, e-tron GT (≈ 470 km utili)",
+      label_travel_date: "Data del viaggio", label_departure: "Ora di partenza",
+      dep_early: "Presto (7–9h)", dep_mid: "Metà mattina (9–11h)", dep_afternoon: "Pomeriggio (15–17h)",
+      label_lunch: "Fascia pranzo", lunch_none: "Senza sosta pranzo",
+      label_overnight: "Pernottamento",
+      overnight_auto: "Decidi automaticamente", overnight_yes: "Sì, voglio pernottare", overnight_no: "No, arrivo lo stesso giorno",
+      btn_plan: "Pianifica il viaggio", btn_calculating: "Calcolo in corso…",
+      sum_distance: "Distanza", sum_duration: "Durata", sum_active: "Tempo attivo",
+      sum_nights: "Pernottamenti", sum_cost: "Costo ricarica",
+      unit_night: "notte", unit_nights: "notti",
+      type_start: "Partenza", type_charge: "Ricarica", type_lunch: "Pranzo",
+      type_hotel: "Pernottamento", type_destination: "Arrivo",
+      day_label: "Giorno",
+      error_plan: "Impossibile ottenere il piano",
+      footer_privacy: "Senza account · Senza tracciamento",
+      fb_title: "Ti è stato utile?", fb_subtitle: "La tua valutazione aiuta a migliorare lo strumento.",
+      fb_placeholder: "Qualcosa da migliorare? (facoltativo)",
+      fb_submit: "Invia valutazione", fb_thanks: "Grazie! Il tuo feedback è molto utile.",
+    },
+    de: {
+      h1_main: "Die Reise, nicht", h1_em: "das Laden",
+      subtitle: "Plane rund ums Mittagessen und den Schlaf. Ladestopps passen sich dir an.",
+      group_route: "Route", group_car: "Auto", group_schedule: "Zeiten & Präferenzen",
+      label_origin: "Startort", label_destination: "Zielort",
+      ph_origin: "Abfahrtsstadt", ph_destination: "Ankunftsstadt",
+      label_car_category: "Batteriekategorie",
+      car_compact: "Kompakt — Zoe, e-208, 500e (≈ 220 km Reichweite)",
+      car_medium:  "Mittelklasse — MG4, Megane E-Tech, ID.3 (≈ 320 km Reichweite)",
+      car_large:   "Groß — Tesla M3 SR, EV6, Ioniq 5 (≈ 400 km Reichweite)",
+      car_premium: "Premium — Tesla MY LR, EQE, e-tron GT (≈ 470 km Reichweite)",
+      label_travel_date: "Reisedatum", label_departure: "Abfahrtszeit",
+      dep_early: "Früh morgens (7–9h)", dep_mid: "Vormittag (9–11h)", dep_afternoon: "Nachmittag (15–17h)",
+      label_lunch: "Mittagsfenster", lunch_none: "Keine Mittagspause",
+      label_overnight: "Übernachtung",
+      overnight_auto: "Automatisch entscheiden", overnight_yes: "Ja, ich möchte übernachten", overnight_no: "Nein, ich komme am selben Tag an",
+      btn_plan: "Reise planen", btn_calculating: "Wird berechnet…",
+      sum_distance: "Distanz", sum_duration: "Dauer", sum_active: "Aktive Zeit",
+      sum_nights: "Übernachtungen", sum_cost: "Ladekosten",
+      unit_night: "Nacht", unit_nights: "Nächte",
+      type_start: "Abfahrt", type_charge: "Laden", type_lunch: "Mittagessen",
+      type_hotel: "Übernachtung", type_destination: "Ankunft",
+      day_label: "Tag",
+      error_plan: "Plan konnte nicht abgerufen werden",
+      footer_privacy: "Keine Konten · Kein Tracking",
+      fb_title: "War das nützlich?", fb_subtitle: "Deine Bewertung hilft, das Tool zu verbessern.",
+      fb_placeholder: "Etwas zu verbessern? (optional)",
+      fb_submit: "Bewertung senden", fb_thanks: "Danke! Dein Feedback hilft sehr.",
+    },
+  };
+
+  function detectLang() {
+    const nav = (navigator.language || 'ca').toLowerCase().split('-')[0];
+    return TR[nav] ? nav : 'en';
+  }
+
+  const LANG = detectLang();
+  const T = TR[LANG];
+  function t(key) { return T[key] || TR.ca[key] || key; }
+
+  function applyTranslations() {
+    // h1 especial (text + em)
+    document.querySelector('[data-i18n-h1]').innerHTML = `${t('h1_main')}<br><em>${t('h1_em')}</em>`;
+    // text content
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      el.textContent = t(el.dataset.i18n);
+    });
+    // placeholders
+    document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+      el.placeholder = t(el.dataset.i18nPh);
+    });
+  }
+
+  applyTranslations();
 
   document.getElementById("travel_date").valueAsDate = new Date(Date.now() + 86400000);
 
@@ -672,7 +874,7 @@
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     submitBtn.disabled = true;
-    submitBtn.innerHTML = `<div class="spinner"></div><span>Calculant…</span>`;
+    submitBtn.innerHTML = `<div class="spinner"></div><span>${t('btn_calculating')}</span>`;
     resultDiv.innerHTML = "";
 
     const payload = {
@@ -683,6 +885,7 @@
       departure_window: document.getElementById("departure_window").value,
       lunch_window:     document.getElementById("lunch_window").value,
       needs_overnight:  document.getElementById("needs_overnight").value,
+      lang:             LANG,
     };
 
     try {
@@ -696,14 +899,17 @@
       renderPlan(await res.json());
       renderFeedback();
     } catch (err) {
-      resultDiv.innerHTML = `<div class="error-block">No s'ha pogut obtenir el pla: ${err.message}. Comprova que el backend és actiu a ${BACKEND_URL}.</div>`;
+      resultDiv.innerHTML = `<div class="error-block">${t('error_plan')}: ${err.message}.</div>`;
     } finally {
       submitBtn.disabled = false;
       submitBtn.innerHTML = `<span id="btn-label">Planifica el viatge</span>`;
     }
   });
 
-  const typeLabel = { start: "Sortida", charge: "Càrrega", lunch: "Dinar", hotel: "Pernoctació", destination: "Arribada" };
+  const typeLabel = {
+    start: t('type_start'), charge: t('type_charge'), lunch: t('type_lunch'),
+    hotel: t('type_hotel'), destination: t('type_destination'),
+  };
 
   // Inline SVG icons (Phosphor-style, bold weight)
   const icons = {
@@ -821,17 +1027,18 @@
     const dur = m > 0 ? `${h}h ${m}min` : `${h}h`;
 
     const nights = plan.stops.filter(s => s.type === 'hotel').length;
-    const durationLabel = nights > 0 ? 'Temps actiu' : 'Durada';
+    const durationLabel = nights > 0 ? t('sum_active') : t('sum_duration');
+    const unitNight = nights === 1 ? t('unit_night') : t('unit_nights');
     const nightsCard = nights > 0 ? `
         <div class="summary-card">
-          <div class="summary-label">Pernoctacions</div>
-          <div class="summary-value">${nights}<span class="summary-unit"> nit${nights > 1 ? 's' : ''}</span></div>
+          <div class="summary-label">${t('sum_nights')}</div>
+          <div class="summary-value">${nights}<span class="summary-unit"> ${unitNight}</span></div>
         </div>` : '';
 
     let html = `
       <div class="summary-grid fade-in">
         <div class="summary-card">
-          <div class="summary-label">Distància</div>
+          <div class="summary-label">${t('sum_distance')}</div>
           <div class="summary-value">${plan.total_distance_km}<span class="summary-unit"> km</span></div>
         </div>
         <div class="summary-card">
@@ -840,7 +1047,7 @@
         </div>
         ${nightsCard}
         <div class="summary-card">
-          <div class="summary-label">Cost càrrega</div>
+          <div class="summary-label">${t('sum_cost')}</div>
           <div class="summary-value">~${plan.estimated_charge_cost_eur}<span class="summary-unit"> €</span></div>
         </div>
       </div>
@@ -872,7 +1079,7 @@
 
       if (stop.type === 'hotel') {
         dayNum++;
-        html += `<div class="day-separator">Dia ${dayNum}</div>`;
+        html += `<div class="day-separator">${t('day_label')} ${dayNum}</div>`;
       }
     });
 
@@ -898,8 +1105,8 @@
     section.style.display = "block";
     section.innerHTML = `
       <div class="feedback-block fade-in">
-        <div class="feedback-title">T'ha estat útil?</div>
-        <div class="feedback-subtitle">La teva valoració ajuda a millorar l'eina.</div>
+        <div class="feedback-title">${t('fb_title')}</div>
+        <div class="feedback-subtitle">${t('fb_subtitle')}</div>
         <div class="stars" id="stars">
           <span class="star" data-v="1">★</span>
           <span class="star" data-v="2">★</span>
@@ -907,9 +1114,9 @@
           <span class="star" data-v="4">★</span>
           <span class="star" data-v="5">★</span>
         </div>
-        <textarea class="feedback-comment" id="feedback-comment" placeholder="Alguna cosa a millorar? (opcional)"></textarea>
-        <button class="feedback-submit" id="feedback-submit" disabled>Envia la valoració</button>
-        <div class="feedback-thanks" id="feedback-thanks" style="display:none">Gràcies! El teu feedback ajuda molt.</div>
+        <textarea class="feedback-comment" id="feedback-comment" placeholder="${t('fb_placeholder')}"></textarea>
+        <button class="feedback-submit" id="feedback-submit" disabled>${t('fb_submit')}</button>
+        <div class="feedback-thanks" id="feedback-thanks" style="display:none">${t('fb_thanks')}</div>
       </div>`;
 
     requestAnimationFrame(() => requestAnimationFrame(() => {
