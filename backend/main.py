@@ -53,6 +53,7 @@ EUR_PER_KWH_AC     = 0.22
 START_SOC          = 95
 RESERVE_SOC        = 10
 MAX_HOUR           = 20.5
+MAX_KM_PER_DAY     = 700   # límit de km per jornada (independentment de l'hora)
 MAX_WALK_MINUTES      = 10  # màxim temps de caminada acceptable (carregador → restaurant/hotel)
 MIN_LUNCH_CHARGE_MIN  = 12  # càrrega <12 min al dinar no val la pena — dinar simple
 
@@ -495,7 +496,8 @@ def _drive_segment(
     route_coords: list | None = None,
     max_charges: int = 4,
     lang: str = "ca",
-    target_km: float | None = None,  # atura't aquí en lloc de dist_km (per dinar com a waypoint)
+    target_km: float | None = None,     # atura't aquí en lloc de dist_km (per dinar com a waypoint)
+    max_daily_km: float = float("inf"), # km màxims d'aquesta jornada (des de start_km)
 ) -> tuple[bool, float, int, float, float]:
     eff_target = target_km if target_km is not None else float(dist_km)
     km_per_pct = car["range_km"] / 85
@@ -548,6 +550,10 @@ def _drive_segment(
         cur_km  += km_to_20
         cur_soc  = 80
         cur_hour = charge_end
+
+        # Límit de km/dia: para aquí si hem superat el màxim de la jornada
+        if cur_km - start_km >= max_daily_km:
+            return False, cur_hour, cur_soc, cur_km, dc_kwh
 
     return False, cur_hour, cur_soc, cur_km, dc_kwh
 
@@ -745,6 +751,8 @@ def create_plan(req: PlanRequest) -> PlanResponse:
     day_start        = cur_hour
 
     while nights <= 5:  # límit de seguretat: màxim 5 pernoctacions
+        day_km_start = cur_km  # km al inici d'aquesta jornada (per calcular pressupost post-dinar)
+
         # ── Dinar del dia (tots els dies, no només el primer) ─────────────────
         if lunch_mid:
             km_to_lunch_today = (lunch_mid - cur_hour) * avg_speed
@@ -754,7 +762,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
                 # Condueix fins a la zona de dinar (amb càrregues DC si cal)
                 pre_arrived, pre_fh, pre_fs, pre_fkm, pre_dc = _drive_segment(
                     stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc,
-                    lang=lang, target_km=lunch_km_abs,
+                    lang=lang, target_km=lunch_km_abs, max_daily_km=MAX_KM_PER_DAY,
                 )
                 total_dc_kwh += pre_dc
 
@@ -767,21 +775,25 @@ def create_plan(req: PlanRequest) -> PlanResponse:
                     total_dc_kwh += c_kwh_l
                     stops.append(lunch_obj)
 
+                    km_used_pre_lunch = pre_fkm - day_km_start
                     arrived, fh, fs, fkm, extra_dc = _drive_segment(
-                        stops, pre_fkm, 80, lunch_end, dist_km, car, avg_speed, rc, lang=lang
+                        stops, pre_fkm, 80, lunch_end, dist_km, car, avg_speed, rc,
+                        lang=lang, max_daily_km=MAX_KM_PER_DAY - km_used_pre_lunch,
                     )
                     total_dc_kwh += extra_dc
                 else:
-                    # No ha pogut arribar al dinar (hora hotel assolida abans)
+                    # No ha pogut arribar al dinar (km o hora hotel assolida abans)
                     arrived, fh, fs, fkm = pre_arrived, pre_fh, pre_fs, pre_fkm
             else:
                 arrived, fh, fs, fkm, extra_dc = _drive_segment(
-                    stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc, lang=lang
+                    stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc,
+                    lang=lang, max_daily_km=MAX_KM_PER_DAY,
                 )
                 total_dc_kwh += extra_dc
         else:
             arrived, fh, fs, fkm, extra_dc = _drive_segment(
-                stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc, lang=lang
+                stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc,
+                lang=lang, max_daily_km=MAX_KM_PER_DAY,
             )
             total_dc_kwh += extra_dc
 
