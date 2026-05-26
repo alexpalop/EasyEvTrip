@@ -515,15 +515,23 @@ def _drive_segment(
         charge_hour = cur_hour + km_to_20 / avg_speed
 
         if charge_hour >= MAX_HOUR:
-            km_drive   = min(km_to_20, (MAX_HOUR - cur_hour) * avg_speed)
+            km_drive   = max(0.0, min(km_to_20, (MAX_HOUR - cur_hour) * avg_speed))
             hotel_hour = cur_hour + km_drive / avg_speed
             hotel_soc  = max(15, _soc_after(cur_soc, km_drive, car))
             return False, hotel_hour, hotel_soc, cur_km + km_drive, dc_kwh
 
         charger, kw_real = _resolve_charger(route_coords, cur_km + km_to_20)
         c_min, c_kwh     = _charging(20, 80, car, kw_real)
-        dc_kwh          += c_kwh
         charge_end       = charge_hour + c_min / 60
+
+        # No iniciar una càrrega que acabaria après de MAX_HOUR — millor anar a l'hotel ara
+        if charge_end > MAX_HOUR:
+            km_drive   = max(0.0, min(km_to_20, (MAX_HOUR - cur_hour) * avg_speed))
+            hotel_hour = cur_hour + km_drive / avg_speed
+            hotel_soc  = max(15, _soc_after(cur_soc, km_drive, car))
+            return False, hotel_hour, hotel_soc, cur_km + km_drive, dc_kwh
+
+        dc_kwh += c_kwh
 
         if charger and charger.get("lat") and charger.get("lon"):
             stop_lat, stop_lon = charger["lat"], charger["lon"]
