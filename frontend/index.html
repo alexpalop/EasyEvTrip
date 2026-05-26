@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EasyEvTrip — Planifica el teu viatge elèctric</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <style>
+    :root {
+      --bg:              #F7F6F3;
+      --surface:         #FFFFFF;
+      --surface-dim:     #F9F9F8;
+      --border:          #EAEAEA;
+      --border-subtle:   rgba(0,0,0,0.06);
+      --text-primary:    #111111;
+      --text-secondary:  #787774;
+      --text-muted:      #ADADAD;
+
+      --green-bg:   #EDF3EC; --green-border: #C5DAC3; --green-text: #346538;
+      --blue-bg:    #E1F3FE; --blue-border:  #B4D8F0; --blue-text:  #1F6C9F;
+      --yellow-bg:  #FBF3DB; --yellow-border:#E8D89A; --yellow-text:#956400;
+      --red-bg:     #FDEBEC; --red-border:   #F0B8B8; --red-text:   #9F2F2D;
+
+      --font-sans: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-serif: 'Newsreader', 'Playfair Display', Georgia, serif;
+      --font-mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* Ambient background radial light */
+    .ambient {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 15% 5%,  rgba(200,190,160,0.05) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 85% 85%, rgba(140,160,180,0.03) 0%, transparent 55%);
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 660px;
+      margin: 0 auto;
+      padding: 64px 24px 96px;
+    }
+
+    /* ── Header ─────────────────────────────────────── */
+    header { margin-bottom: 56px; }
+
+    .wordmark {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .wordmark::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(34px, 7vw, 48px);
+      font-weight: 400;
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+      color: var(--text-primary);
+      margin-bottom: 14px;
+    }
+    h1 em {
+      font-style: italic;
+      color: var(--text-secondary);
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.65;
+      max-width: 440px;
+    }
+
+    /* ── Fade-in animation ──────────────────────────── */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.6s cubic-bezier(0.16,1,0.3,1),
+                  transform 0.6s cubic-bezier(0.16,1,0.3,1);
+    }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+    /* ── Form card ──────────────────────────────────── */
+    .form-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      transition: box-shadow 0.2s ease;
+    }
+    .form-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+
+    .field-group-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+      margin-top: 28px;
+    }
+    .field-group-label:first-child { margin-top: 0; }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .field { margin-bottom: 12px; }
+    .field:last-child { margin-bottom: 0; }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0.01em;
+      margin-bottom: 6px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: var(--font-sans);
+      color: var(--text-primary);
+      background: var(--surface-dim);
+      transition: border-color 0.15s ease, background 0.15s ease;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23ADADAD' d='M5 6L0 0h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--text-primary);
+      background: var(--surface);
+    }
+
+    input::placeholder { color: var(--text-muted); }
+
+    .submit-btn {
+      width: 100%;
+      padding: 13px 24px;
+      background: var(--text-primary);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 5px;
+      font-size: 14px;
+      font-family: var(--font-sans);
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      margin-top: 28px;
+      transition: background 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .submit-btn:hover  { background: #333333; }
+    .submit-btn:active { transform: scale(0.98); }
+    .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 15px; height: 15px;
+      border: 2px solid rgba(255,255,255,0.25);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    /* ── Results ────────────────────────────────────── */
+    #result { margin-top: 32px; }
+
+    /* Summary bento */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 8px;
+      margin-bottom: 28px;
+    }
+
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      transition: box-shadow 0.2s ease;
+    }
+    .summary-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+
+    .summary-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .summary-value {
+      font-size: 22px;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+    .summary-unit {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-secondary);
+    }
+
+    /* Timeline */
+    .timeline { position: relative; }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 19px;
+      top: 32px;
+      bottom: 32px;
+      width: 1px;
+      background: var(--border);
+    }
+
+    .stop {
+      display: grid;
+      grid-template-columns: 40px 1fr;
+      gap: 14px;
+      padding: 5px 0;
+    }
+
+    .stop-icon-col {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .stop-dot {
+      width: 38px; height: 38px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--text-secondary);
+    }
+    .stop-dot.type-start       { background: var(--surface-dim); }
+    .stop-dot.type-lunch       { background: var(--green-bg);  border-color: var(--green-border);  color: var(--green-text);  }
+    .stop-dot.type-hotel       { background: var(--blue-bg);   border-color: var(--blue-border);   color: var(--blue-text);   }
+    .stop-dot.type-charge      { background: var(--yellow-bg); border-color: var(--yellow-border); color: var(--yellow-text); }
+    .stop-dot.type-destination { background: var(--text-primary); border-color: var(--text-primary); color: #FFFFFF; }
+
+    .stop-body {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      transition: box-shadow 0.2s ease;
+    }
+    .stop-body:hover         { box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .stop-body.type-lunch    { background: var(--green-bg);  border-color: var(--green-border);  }
+    .stop-body.type-hotel    { background: var(--blue-bg);   border-color: var(--blue-border);   }
+    .stop-body.type-charge   { background: var(--yellow-bg); border-color: var(--yellow-border); }
+
+    .stop-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .stop-badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      background: rgba(0,0,0,0.05);
+      color: var(--text-secondary);
+    }
+    .stop-badge.type-start       { background: rgba(0,0,0,0.05);   color: var(--text-secondary); }
+    .stop-badge.type-lunch       { background: rgba(52,101,56,.14); color: var(--green-text);  }
+    .stop-badge.type-hotel       { background: rgba(31,108,159,.14);color: var(--blue-text);   }
+    .stop-badge.type-charge      { background: rgba(149,100,0,.14); color: var(--yellow-text); }
+    .stop-badge.type-destination { background: rgba(17,17,17,.08);  color: var(--text-primary);}
+
+    .stop-time {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .stop-name {
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      line-height: 1.3;
+      color: var(--text-primary);
+    }
+
+    .stop-location {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+      margin-top: 2px;
+    }
+
+    .stop-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-top: 4px;
+    }
+
+    /* Map thumbnail */
+    .stop-map {
+      margin-top: 10px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+      height: 140px;
+    }
+    .stop-map .leaflet-container {
+      height: 100%;
+      border-radius: 6px;
+      font-family: var(--font-sans);
+    }
+    .stop-map-link {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      text-decoration: none;
+      letter-spacing: 0.04em;
+    }
+    .stop-map-link:hover { color: var(--text-primary); }
+
+    /* Battery indicator */
+    .battery-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-subtle);
+    }
+    .battery-lbl {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .battery-track {
+      flex: 1;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .battery-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--text-primary);
+      transition: width 0.8s cubic-bezier(0.16,1,0.3,1);
+    }
+    .battery-val {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    /* Day separator */
+    .day-separator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 0 54px;
+      padding: 6px 0;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .day-separator::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Notes + error */
+    .notes-block {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .notes-block.info {
+      background: var(--green-bg);
+      border: 1px solid var(--green-border);
+      color: var(--green-text);
+    }
+    .notes-block.warning {
+      background: var(--yellow-bg);
+      border: 1px solid var(--yellow-border);
+      color: var(--yellow-text);
+    }
+
+    .error-block {
+      padding: 14px 16px;
+      background: var(--red-bg);
+      border: 1px solid var(--red-border);
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--red-text);
+      line-height: 1.55;
+    }
+
+    /* Feedback */
+    .feedback-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 24px;
+      margin-top: 32px;
+    }
+    .feedback-title {
+      font-size: 15px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    .feedback-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 18px;
+    }
+    .stars {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .star {
+      font-size: 30px;
+      cursor: pointer;
+      color: #D5D3CE;
+      transition: color 0.1s, transform 0.1s;
+      user-select: none;
+      line-height: 1;
+    }
+    .star:hover, .star.active { color: #F5A42A; }
+    .star:hover { transform: scale(1.15); }
+    .feedback-comment {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: var(--font-sans);
+      font-size: 14px;
+      color: var(--text-primary);
+      background: var(--surface-dim);
+      resize: vertical;
+      min-height: 72px;
+      margin-bottom: 12px;
+    }
+    .feedback-comment:focus { outline: none; border-color: #999; }
+    .feedback-comment::placeholder { color: var(--text-muted); }
+    .feedback-submit {
+      background: var(--text-primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 22px;
+      font-size: 14px;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .feedback-submit:disabled { opacity: 0.35; cursor: default; }
+    .feedback-thanks {
+      font-size: 14px;
+      color: var(--green-text);
+      margin-top: 12px;
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 80px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+  </style>
+</head>
+<body>
+
+<div class="ambient"></div>
+
+<div class="container">
+
+  <header>
+    <div class="wordmark">EasyEvTrip</div>
+    <h1>El viatge, no<br><em>el carregador</em></h1>
+    <p class="subtitle">Planifica al voltant del dinar i del son. Les parades de càrrega s'adapten a tu.</p>
+  </header>
+
+  <div class="form-card fade-in">
+    <form id="plan-form">
+
+      <div class="field-group-label">Ruta</div>
+      <div class="field-row">
+        <div class="field">
+          <label for="origin">Origen</label>
+          <input type="text" id="origin" value="Barcelona" placeholder="Ciutat de sortida" required>
+        </div>
+        <div class="field">
+          <label for="destination">Destí</label>
+          <input type="text" id="destination" value="Sevilla" placeholder="Ciutat d'arribada" required>
+        </div>
+      </div>
+
+      <div class="field-group-label">Cotxe</div>
+      <div class="field">
+        <label for="car_category">Categoria de bateria</label>
+        <select id="car_category" required>
+          <option value="compact">Compacte — Zoe, e-208, 500e (≈ 220 km útils)</option>
+          <option value="medium">Mitjà — MG4, Megane E-Tech, ID.3 (≈ 320 km útils)</option>
+          <option value="large" selected>Gran — Tesla M3 SR, EV6, Ioniq 5 (≈ 400 km útils)</option>
+          <option value="premium">Premium — Tesla MY LR, EQE, e-tron GT (≈ 470 km útils)</option>
+        </select>
+      </div>
+
+      <div class="field-group-label">Horaris i preferències</div>
+      <div class="field-row">
+        <div class="field">
+          <label for="travel_date">Data del viatge</label>
+          <input type="date" id="travel_date" required>
+        </div>
+        <div class="field">
+          <label for="departure_window">Hora de sortida</label>
+          <select id="departure_window">
+            <option value="morning_early">Matí d'hora (7–9h)</option>
+            <option value="morning_late" selected>Mig matí (9–11h)</option>
+            <option value="afternoon">Tarda (15–17h)</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="lunch_window">Finestra de dinar</label>
+          <select id="lunch_window">
+            <option value="13_14">13:00 – 14:00</option>
+            <option value="13_30_15" selected>13:30 – 15:00</option>
+            <option value="14_15_30">14:00 – 15:30</option>
+            <option value="none">Sense parada a dinar</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="needs_overnight">Pernoctació</label>
+          <select id="needs_overnight">
+            <option value="auto" selected>Decideix automàticament</option>
+            <option value="yes">Sí, vull pernoctar</option>
+            <option value="no">No, arribo el mateix dia</option>
+          </select>
+        </div>
+      </div>
+
+      <button type="submit" id="submit-btn" class="submit-btn">
+        <span id="btn-label">Planifica el viatge</span>
+      </button>
+
+    </form>
+  </div>
+
+  <div id="result"></div>
+  <div id="feedback-section" style="display:none"></div>
+
+  <footer>
+    <span>MVP · Fase 8 · Experimental</span>
+    <span>Sense comptes · Sense seguiment</span>
+  </footer>
+
+</div>
+
+<!-- Umami analytics — substitueix data-website-id i src quan tinguis el servei desplegat
+<script defer src="https://umami.example.com/script.js" data-website-id="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"></script>
+-->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.js" crossorigin=""></script>
+<script>
+  const BACKEND_URL = "http://localhost:8000";
+  let _lastPayload = null;
+
+  document.getElementById("travel_date").valueAsDate = new Date(Date.now() + 86400000);
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        observer.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.08 });
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+  const form      = document.getElementById("plan-form");
+  const resultDiv = document.getElementById("result");
+  const submitBtn = document.getElementById("submit-btn");
+  const btnLabel  = document.getElementById("btn-label");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `<div class="spinner"></div><span>Calculant…</span>`;
+    resultDiv.innerHTML = "";
+
+    const payload = {
+      origin:           document.getElementById("origin").value,
+      destination:      document.getElementById("destination").value,
+      car_category:     document.getElementById("car_category").value,
+      travel_date:      document.getElementById("travel_date").value,
+      departure_window: document.getElementById("departure_window").value,
+      lunch_window:     document.getElementById("lunch_window").value,
+      needs_overnight:  document.getElementById("needs_overnight").value,
+    };
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/plan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      _lastPayload = payload;
+      renderPlan(await res.json());
+      renderFeedback();
+    } catch (err) {
+      resultDiv.innerHTML = `<div class="error-block">No s'ha pogut obtenir el pla: ${err.message}. Comprova que el backend és actiu a ${BACKEND_URL}.</div>`;
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `<span id="btn-label">Planifica el viatge</span>`;
+    }
+  });
+
+  const typeLabel = { start: "Sortida", charge: "Càrrega", lunch: "Dinar", hotel: "Pernoctació", destination: "Arribada" };
+
+  // Inline SVG icons (Phosphor-style, bold weight)
+  const icons = {
+    start: `<svg width="18" height="18" viewBox="0 0 256 256" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M229.66,218.34l-50.07-50.07a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.31ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg>`,
+    charge: `<svg width="18" height="18" viewBox="0 0 256 256" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M213.85,125.46l-112,120a8,8,0,0,1-13.72-7l14.66-73.33L56.46,152a8,8,0,0,1-6.31-13l112-120a8,8,0,0,1,13.72,7L161.21,99.34,197.54,113a8,8,0,0,1,6.31,12.46Z"/></svg>`,
+    lunch: `<svg width="18" height="18" viewBox="0 0 256 256" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M80,32a8,8,0,0,0-8,8V96a40,40,0,0,0,32,39.22V216a8,8,0,0,0,16,0V135.22A40,40,0,0,0,152,96V40a8,8,0,0,0-16,0V96a24,24,0,0,1-48,0V40A8,8,0,0,0,80,32Zm136,0a8,8,0,0,0-8,8V152h-24V40a8,8,0,0,0-16,0V160a8,8,0,0,0,8,8h32v48a8,8,0,0,0,16,0V40A8,8,0,0,0,216,32Z"/></svg>`,
+    hotel: `<svg width="18" height="18" viewBox="0 0 256 256" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M235.54,150.21a104.84,104.84,0,0,1-37,52.91A104,104,0,0,1,32,120,103.09,103.09,0,0,1,81.5,32.49a8,8,0,0,1,10,10C82.49,57.3,80,70.36,80,80a80.09,80.09,0,0,0,80,80c9.64,0,22.7-2.49,37.51-11.49a8,8,0,0,1,10,10Z"/></svg>`,
+    destination: `<svg width="18" height="18" viewBox="0 0 256 256" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"/></svg>`,
+  };
+
+  function segmentCoords(polyline, kmFrom, kmTo, distKm) {
+    if (!polyline || polyline.length < 2 || !distKm) return polyline || [];
+    const n       = polyline.length;
+    const fromIdx = Math.max(0, Math.floor(kmFrom / distKm * (n - 1)));
+    const toIdx   = Math.min(n - 1, Math.ceil(kmTo  / distKm * (n - 1)));
+    return polyline.slice(fromIdx, toIdx + 1);
+  }
+
+  function gmapsUrl(lat, lon, walkToLat, walkToLon, type) {
+    if ((type === 'lunch' || type === 'hotel') && walkToLat != null && walkToLon != null)
+      return `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${walkToLat},${walkToLon}&travelmode=walking`;
+    if (type === 'charge')
+      return `https://www.google.com/maps/search/electric+vehicle+charging/@${lat},${lon},15z`;
+    return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+  }
+
+  function mapHtml(lat, lon, name, stopIdx, stopType, walkToLat, walkToLon) {
+    if (lat == null || lon == null) return '';
+    const link = gmapsUrl(lat, lon, walkToLat, walkToLon, stopType);
+    const label = (stopType === 'lunch' || stopType === 'hotel') && walkToLat != null
+      ? 'Ruta a peu al mapa →'
+      : 'Veure al mapa →';
+    return `
+      <div class="stop-map">
+        <div id="map-stop-${stopIdx}" style="height:100%"></div>
+      </div>
+      <a href="${link}" target="_blank" rel="noopener" class="stop-map-link">${label}</a>`;
+  }
+
+  function initStopMaps(plan) {
+    plan.stops.forEach((stop, i) => {
+      if (stop.lat == null || stop.lon == null) return;
+      const el = document.getElementById(`map-stop-${i}`);
+      if (!el) return;
+
+      const map = L.map(el, {
+        zoomControl: false, attributionControl: false,
+        dragging: false, scrollWheelZoom: false,
+        touchZoom: false, doubleClickZoom: false, keyboard: false,
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+
+      const prevStop = i > 0 ? plan.stops[i - 1] : null;
+      const kmFrom   = prevStop?.km_pos ?? 0;
+      const kmTo     = stop.km_pos ?? plan.total_distance_km;
+      const seg      = (plan.route_polyline && i > 0)
+        ? segmentCoords(plan.route_polyline, kmFrom, kmTo, plan.total_distance_km)
+        : null;
+
+      // Ruta del cotxe (segment de carretera)
+      let routeBounds = null;
+      if (seg && seg.length >= 2) {
+        const poly = L.polyline(seg, { color: '#111111', weight: 3, opacity: 0.85 }).addTo(map);
+        routeBounds = poly.getBounds();
+      }
+
+      // Marcador principal (carregador / punt de parada)
+      L.circleMarker([stop.lat, stop.lon], {
+        radius: 5, fillColor: '#111111', fillOpacity: 1, color: '#fff', weight: 2,
+      }).addTo(map);
+
+      // Ruta a peu + marcador destí (restaurant / hotel)
+      if (stop.walk_to_lat != null && stop.walk_to_lon != null) {
+        L.polyline([[stop.lat, stop.lon], [stop.walk_to_lat, stop.walk_to_lon]], {
+          color: '#346538', weight: 2, dashArray: '5 5', opacity: 0.9,
+        }).addTo(map);
+        L.circleMarker([stop.walk_to_lat, stop.walk_to_lon], {
+          radius: 5, fillColor: '#346538', fillOpacity: 1, color: '#fff', weight: 2,
+        }).addTo(map);
+      }
+
+      // Ajusta la vista
+      const walkBounds = stop.walk_to_lat != null
+        ? L.latLngBounds([[stop.lat, stop.lon], [stop.walk_to_lat, stop.walk_to_lon]])
+        : null;
+
+      if (routeBounds && walkBounds) {
+        map.fitBounds(routeBounds.extend(walkBounds).pad(0.2));
+      } else if (routeBounds) {
+        map.fitBounds(routeBounds.pad(0.2));
+      } else if (walkBounds) {
+        map.fitBounds(walkBounds.pad(0.35));
+      } else {
+        map.setView([stop.lat, stop.lon], 13);
+      }
+    });
+  }
+
+  function batteryHtml(arrival, departure) {
+    if (arrival == null && departure == null) return '';
+    const pct = departure != null ? departure : arrival;
+    const label = (arrival != null && departure != null) ? `${arrival}% → ${departure}%` : `${pct}%`;
+    return `
+      <div class="battery-row">
+        <span class="battery-lbl">Bateria</span>
+        <div class="battery-track"><div class="battery-fill" style="width:${pct}%"></div></div>
+        <span class="battery-val">${label}</span>
+      </div>`;
+  }
+
+  function renderPlan(plan) {
+    const h = Math.floor(plan.total_duration_minutes / 60);
+    const m = plan.total_duration_minutes % 60;
+    const dur = m > 0 ? `${h}h ${m}min` : `${h}h`;
+
+    const nights = plan.stops.filter(s => s.type === 'hotel').length;
+    const durationLabel = nights > 0 ? 'Temps actiu' : 'Durada';
+    const nightsCard = nights > 0 ? `
+        <div class="summary-card">
+          <div class="summary-label">Pernoctacions</div>
+          <div class="summary-value">${nights}<span class="summary-unit"> nit${nights > 1 ? 's' : ''}</span></div>
+        </div>` : '';
+
+    let html = `
+      <div class="summary-grid fade-in">
+        <div class="summary-card">
+          <div class="summary-label">Distància</div>
+          <div class="summary-value">${plan.total_distance_km}<span class="summary-unit"> km</span></div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">${durationLabel}</div>
+          <div class="summary-value">${dur}</div>
+        </div>
+        ${nightsCard}
+        <div class="summary-card">
+          <div class="summary-label">Cost càrrega</div>
+          <div class="summary-value">~${plan.estimated_charge_cost_eur}<span class="summary-unit"> €</span></div>
+        </div>
+      </div>
+      <div class="timeline">`;
+
+    let dayNum = 1;
+    plan.stops.forEach((stop, i) => {
+      const time = (stop.departure_time && stop.departure_time !== stop.arrival_time)
+        ? `${stop.arrival_time} – ${stop.departure_time}`
+        : stop.arrival_time;
+
+      html += `
+        <div class="stop fade-in" style="transition-delay:${i * 60}ms">
+          <div class="stop-icon-col">
+            <div class="stop-dot type-${stop.type}">${icons[stop.type] || icons.start}</div>
+          </div>
+          <div class="stop-body type-${stop.type}">
+            <div class="stop-meta">
+              <span class="stop-badge type-${stop.type}">${typeLabel[stop.type] || stop.type}</span>
+              <span class="stop-time">${time}</span>
+            </div>
+            <div class="stop-name">${stop.name}</div>
+            ${stop.location ? `<div class="stop-location">${stop.location.toUpperCase()}</div>` : ''}
+            <div class="stop-desc">${stop.description}</div>
+            ${mapHtml(stop.lat, stop.lon, stop.name, i, stop.type, stop.walk_to_lat, stop.walk_to_lon)}
+            ${batteryHtml(stop.battery_arrival, stop.battery_departure)}
+          </div>
+        </div>`;
+
+      if (stop.type === 'hotel') {
+        dayNum++;
+        html += `<div class="day-separator">Dia ${dayNum}</div>`;
+      }
+    });
+
+    html += `</div>`;
+    if (plan.notes) {
+      const isInfo = plan.notes.includes('sense necessitat de carregar');
+      html += `<div class="notes-block ${isInfo ? 'info' : 'warning'} fade-in" style="transition-delay:${plan.stops.length * 60}ms">${plan.notes}</div>`;
+    }
+
+    resultDiv.innerHTML = html;
+
+    // Trigger animations via IntersectionObserver
+    resultDiv.querySelectorAll('.fade-in').forEach(el => {
+      requestAnimationFrame(() => requestAnimationFrame(() => observer.observe(el)));
+    });
+
+    // Inicialitza els mapes Leaflet per a cada parada
+    requestAnimationFrame(() => initStopMaps(plan));
+  }
+
+  function renderFeedback() {
+    const section = document.getElementById("feedback-section");
+    section.style.display = "block";
+    section.innerHTML = `
+      <div class="feedback-block fade-in">
+        <div class="feedback-title">T'ha estat útil?</div>
+        <div class="feedback-subtitle">La teva valoració ajuda a millorar l'eina.</div>
+        <div class="stars" id="stars">
+          <span class="star" data-v="1">★</span>
+          <span class="star" data-v="2">★</span>
+          <span class="star" data-v="3">★</span>
+          <span class="star" data-v="4">★</span>
+          <span class="star" data-v="5">★</span>
+        </div>
+        <textarea class="feedback-comment" id="feedback-comment" placeholder="Alguna cosa a millorar? (opcional)"></textarea>
+        <button class="feedback-submit" id="feedback-submit" disabled>Envia la valoració</button>
+        <div class="feedback-thanks" id="feedback-thanks" style="display:none">Gràcies! El teu feedback ajuda molt.</div>
+      </div>`;
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      section.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+    }));
+
+    let selectedRating = 0;
+    const stars = section.querySelectorAll(".star");
+    const submitBtn = section.querySelector("#feedback-submit");
+
+    stars.forEach(star => {
+      star.addEventListener("mouseenter", () => {
+        const v = +star.dataset.v;
+        stars.forEach(s => s.classList.toggle("active", +s.dataset.v <= v));
+      });
+      star.addEventListener("mouseleave", () => {
+        stars.forEach(s => s.classList.toggle("active", +s.dataset.v <= selectedRating));
+      });
+      star.addEventListener("click", () => {
+        selectedRating = +star.dataset.v;
+        stars.forEach(s => s.classList.toggle("active", +s.dataset.v <= selectedRating));
+        submitBtn.disabled = false;
+      });
+    });
+
+    submitBtn.addEventListener("click", async () => {
+      submitBtn.disabled = true;
+      const body = {
+        rating: selectedRating,
+        comment: section.querySelector("#feedback-comment").value.trim() || null,
+        origin:       _lastPayload?.origin       || null,
+        destination:  _lastPayload?.destination  || null,
+        car_category: _lastPayload?.car_category || null,
+      };
+      try {
+        await fetch(`${BACKEND_URL}/feedback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      } catch (_) {}
+      section.querySelector("#feedback-thanks").style.display = "block";
+      submitBtn.style.display = "none";
+    });
+  }
+</script>
+</body>
+</html>
