@@ -625,6 +625,17 @@
           </select>
         </div>
       </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="max_km_per_day" data-i18n="label_max_km"></label>
+          <select id="max_km_per_day">
+            <option value="450"  data-i18n="km_relaxed"></option>
+            <option value="600"  data-i18n="km_moderate"></option>
+            <option value="750" selected data-i18n="km_standard"></option>
+            <option value="900"  data-i18n="km_long"></option>
+          </select>
+        </div>
+      </div>
 
       <button type="submit" id="submit-btn" class="submit-btn">
         <span id="btn-label" data-i18n="btn_plan"></span>
@@ -678,6 +689,9 @@
       day_label: "Dia",
       error_plan: "No s'ha pogut obtenir el pla",
       footer_privacy: "Sense comptes · Sense seguiment",
+      label_max_km: "Ritme de conducció",
+      km_relaxed: "Tranquil — màx. 450 km/dia", km_moderate: "Moderat — màx. 600 km/dia",
+      km_standard: "Estàndard — màx. 750 km/dia", km_long: "Jornada llarga — màx. 900 km/dia",
       fb_title: "T'ha estat útil?", fb_subtitle: "La teva valoració ajuda a millorar l'eina.",
       fb_placeholder: "Alguna cosa a millorar? (opcional)",
       fb_submit: "Envia la valoració", fb_thanks: "Gràcies! El teu feedback ajuda molt.",
@@ -707,6 +721,9 @@
       day_label: "Día",
       error_plan: "No se ha podido obtener el plan",
       footer_privacy: "Sin cuentas · Sin seguimiento",
+      label_max_km: "Ritmo de conducción",
+      km_relaxed: "Tranquilo — máx. 450 km/día", km_moderate: "Moderado — máx. 600 km/día",
+      km_standard: "Estándar — máx. 750 km/día", km_long: "Jornada larga — máx. 900 km/día",
       fb_title: "¿Te ha sido útil?", fb_subtitle: "Tu valoración ayuda a mejorar la herramienta.",
       fb_placeholder: "¿Algo que mejorar? (opcional)",
       fb_submit: "Enviar valoración", fb_thanks: "¡Gracias! Tu feedback ayuda mucho.",
@@ -736,6 +753,9 @@
       day_label: "Day",
       error_plan: "Could not get the plan",
       footer_privacy: "No accounts · No tracking",
+      label_max_km: "Driving pace",
+      km_relaxed: "Relaxed — max. 450 km/day", km_moderate: "Moderate — max. 600 km/day",
+      km_standard: "Standard — max. 750 km/day", km_long: "Long day — max. 900 km/day",
       fb_title: "Was this useful?", fb_subtitle: "Your rating helps improve the tool.",
       fb_placeholder: "Anything to improve? (optional)",
       fb_submit: "Send rating", fb_thanks: "Thanks! Your feedback helps a lot.",
@@ -765,6 +785,9 @@
       day_label: "Jour",
       error_plan: "Impossible d'obtenir le plan",
       footer_privacy: "Sans comptes · Sans suivi",
+      label_max_km: "Rythme de conduite",
+      km_relaxed: "Tranquille — max. 450 km/jour", km_moderate: "Modéré — max. 600 km/jour",
+      km_standard: "Standard — max. 750 km/jour", km_long: "Longue journée — max. 900 km/jour",
       fb_title: "Cela vous a-t-il été utile?", fb_subtitle: "Votre note aide à améliorer l'outil.",
       fb_placeholder: "Quelque chose à améliorer? (optionnel)",
       fb_submit: "Envoyer l'avis", fb_thanks: "Merci! Votre retour est très utile.",
@@ -794,6 +817,9 @@
       day_label: "Giorno",
       error_plan: "Impossibile ottenere il piano",
       footer_privacy: "Senza account · Senza tracciamento",
+      label_max_km: "Ritmo di guida",
+      km_relaxed: "Rilassato — max. 450 km/giorno", km_moderate: "Moderato — max. 600 km/giorno",
+      km_standard: "Standard — max. 750 km/giorno", km_long: "Giornata lunga — max. 900 km/giorno",
       fb_title: "Ti è stato utile?", fb_subtitle: "La tua valutazione aiuta a migliorare lo strumento.",
       fb_placeholder: "Qualcosa da migliorare? (facoltativo)",
       fb_submit: "Invia valutazione", fb_thanks: "Grazie! Il tuo feedback è molto utile.",
@@ -823,6 +849,9 @@
       day_label: "Tag",
       error_plan: "Plan konnte nicht abgerufen werden",
       footer_privacy: "Keine Konten · Kein Tracking",
+      label_max_km: "Fahrttempo",
+      km_relaxed: "Entspannt — max. 450 km/Tag", km_moderate: "Moderat — max. 600 km/Tag",
+      km_standard: "Standard — max. 750 km/Tag", km_long: "Langer Tag — max. 900 km/Tag",
       fb_title: "War das nützlich?", fb_subtitle: "Deine Bewertung hilft, das Tool zu verbessern.",
       fb_placeholder: "Etwas zu verbessern? (optional)",
       fb_submit: "Bewertung senden", fb_thanks: "Danke! Dein Feedback hilft sehr.",
@@ -885,6 +914,7 @@
       departure_window: document.getElementById("departure_window").value,
       lunch_window:     document.getElementById("lunch_window").value,
       needs_overnight:  document.getElementById("needs_overnight").value,
+      max_km_per_day:   parseInt(document.getElementById("max_km_per_day").value),
       lang:             LANG,
     };
 

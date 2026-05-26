@@ -23,6 +23,7 @@ class PlanRequest(BaseModel):
         "auto", description="Si cal dormir pel camí"
     )
     lang: Optional[str] = Field("ca", description="Codi d'idioma BCP-47, ex: 'ca', 'es', 'en'")
+    max_km_per_day: int = Field(700, ge=300, le=1000, description="Km màxims per jornada de conducció")
 
 
 class PlanStop(BaseModel):
