@@ -511,7 +511,17 @@ def _drive_segment(
         if soc_at_dest >= RESERVE_SOC:
             return True, cur_hour + km_left / avg_speed, soc_at_dest, eff_target, dc_kwh
 
-        km_to_20    = max(0.5, (cur_soc - 20) * km_per_pct)
+        km_to_20 = max(0.5, (cur_soc - 20) * km_per_pct)
+
+        # Para abans del carregador si ja hem esgotat el pressupost diari
+        daily_driven     = cur_km - start_km
+        remaining_budget = max_daily_km - daily_driven
+        if km_to_20 >= remaining_budget:
+            km_drive   = max(0.0, min(remaining_budget, (MAX_HOUR - cur_hour) * avg_speed))
+            hotel_hour = cur_hour + km_drive / avg_speed
+            hotel_soc  = max(15, _soc_after(cur_soc, km_drive, car))
+            return False, hotel_hour, hotel_soc, cur_km + km_drive, dc_kwh
+
         charge_hour = cur_hour + km_to_20 / avg_speed
 
         if charge_hour >= MAX_HOUR:
