@@ -495,17 +495,19 @@ def _drive_segment(
     route_coords: list | None = None,
     max_charges: int = 4,
     lang: str = "ca",
+    target_km: float | None = None,  # atura't aquí en lloc de dist_km (per dinar com a waypoint)
 ) -> tuple[bool, float, int, float, float]:
+    eff_target = target_km if target_km is not None else float(dist_km)
     km_per_pct = car["range_km"] / 85
     cur_km, cur_soc, cur_hour = start_km, start_soc, start_hour
     dc_kwh = 0.0
 
     for _ in range(max_charges + 1):
-        km_left     = dist_km - cur_km
+        km_left     = eff_target - cur_km
         soc_at_dest = _soc_after(cur_soc, km_left, car)
 
         if soc_at_dest >= RESERVE_SOC:
-            return True, cur_hour + km_left / avg_speed, soc_at_dest, dist_km, dc_kwh
+            return True, cur_hour + km_left / avg_speed, soc_at_dest, eff_target, dc_kwh
 
         km_to_20    = max(0.5, (cur_soc - 20) * km_per_pct)
         charge_hour = cur_hour + km_to_20 / avg_speed
@@ -743,11 +745,47 @@ def create_plan(req: PlanRequest) -> PlanResponse:
     day_start        = cur_hour
 
     while nights <= 5:  # límit de seguretat: màxim 5 pernoctacions
-        arrived, fh, fs, fkm, extra_dc = _drive_segment(
-            stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc, lang=lang
-        )
-        total_dc_kwh += extra_dc
-        active_min   += round((fh - day_start) * 60)
+        # ── Dinar del dia (tots els dies, no només el primer) ─────────────────
+        if lunch_mid:
+            km_to_lunch_today = (lunch_mid - cur_hour) * avg_speed
+            lunch_km_abs      = cur_km + km_to_lunch_today
+
+            if km_to_lunch_today > 0 and lunch_km_abs < dist_km:
+                # Condueix fins a la zona de dinar (amb càrregues DC si cal)
+                pre_arrived, pre_fh, pre_fs, pre_fkm, pre_dc = _drive_segment(
+                    stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc,
+                    lang=lang, target_km=lunch_km_abs,
+                )
+                total_dc_kwh += pre_dc
+
+                if pre_arrived:
+                    charger_l, kw_real_l = _resolve_charger(rc, pre_fkm)
+                    lunch_obj, c_kwh_l, lunch_end = _make_lunch_stop(
+                        charger_l, kw_real_l, max(10, pre_fs), lunch_mid - 0.5, car,
+                        km_pos=round(pre_fkm, 1), lang=lang,
+                    )
+                    total_dc_kwh += c_kwh_l
+                    stops.append(lunch_obj)
+
+                    arrived, fh, fs, fkm, extra_dc = _drive_segment(
+                        stops, pre_fkm, 80, lunch_end, dist_km, car, avg_speed, rc, lang=lang
+                    )
+                    total_dc_kwh += extra_dc
+                else:
+                    # No ha pogut arribar al dinar (hora hotel assolida abans)
+                    arrived, fh, fs, fkm = pre_arrived, pre_fh, pre_fs, pre_fkm
+            else:
+                arrived, fh, fs, fkm, extra_dc = _drive_segment(
+                    stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc, lang=lang
+                )
+                total_dc_kwh += extra_dc
+        else:
+            arrived, fh, fs, fkm, extra_dc = _drive_segment(
+                stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc, lang=lang
+            )
+            total_dc_kwh += extra_dc
+
+        active_min += round((fh - day_start) * 60)
 
         if arrived:
             stops.append(PlanStop(
