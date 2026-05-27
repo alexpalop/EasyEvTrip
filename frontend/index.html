@@ -445,6 +445,29 @@
       background: var(--border);
     }
 
+    /* Km connector between stops */
+    .km-connector {
+      display: grid;
+      grid-template-columns: 40px 1fr;
+      gap: 14px;
+      position: relative;
+      z-index: 2;
+      pointer-events: none;
+      margin: -3px 0;
+    }
+    .km-pill {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 2px 3px;
+      text-align: center;
+      line-height: 1.4;
+    }
+
     /* Notes + error */
     .notes-block {
       margin-top: 16px;
@@ -1107,9 +1130,24 @@
           </div>
         </div>`;
 
+      const nextStop = plan.stops[i + 1];
+      if (nextStop && stop.type !== 'hotel') {
+        const segKm = Math.round((nextStop.km_pos ?? plan.total_distance_km) - (stop.km_pos ?? 0));
+        if (segKm > 0) {
+          html += `<div class="km-connector"><div class="km-pill">${segKm} km</div><div></div></div>`;
+        }
+      }
+
       if (stop.type === 'hotel') {
         dayNum++;
         html += `<div class="day-separator">${t('day_label')} ${dayNum}</div>`;
+        const nextStopAfterHotel = plan.stops[i + 1];
+        if (nextStopAfterHotel) {
+          const segKm = Math.round((nextStopAfterHotel.km_pos ?? plan.total_distance_km) - (stop.km_pos ?? 0));
+          if (segKm > 0) {
+            html += `<div class="km-connector"><div class="km-pill">${segKm} km</div><div></div></div>`;
+          }
+        }
       }
     });
 
