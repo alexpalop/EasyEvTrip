@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import init_db, store_feedback
+from database import init_db, store_feedback, get_all_feedback
 from i18n import _t, normalize_lang
 from models import FeedbackRequest, PlanRequest, PlanResponse, PlanStop
 
@@ -28,6 +28,7 @@ app.add_middleware(
 )
 
 ORS_KEY    = os.getenv("ORS_API_KEY")
+ADMIN_KEY  = os.getenv("ADMIN_KEY", "")
 OCM_KEY    = os.getenv("OCM_API_KEY")
 PLACES_KEY = os.getenv("GOOGLE_PLACES_KEY")
 
@@ -887,3 +888,10 @@ def create_plan(req: PlanRequest) -> PlanResponse:
 async def post_feedback(req: FeedbackRequest) -> dict:
     store_feedback(req.rating, req.comment, req.origin, req.destination, req.car_category)
     return {"ok": True}
+
+
+@app.get("/admin/feedback")
+async def admin_feedback(key: str = "") -> list:
+    if not ADMIN_KEY or key != ADMIN_KEY:
+        raise HTTPException(403, "Forbidden")
+    return get_all_feedback()
