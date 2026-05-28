@@ -1,5 +1,9 @@
 # Easy EV Trip — Context del projecte
 
+## Workflow de Git
+
+Després de qualsevol canvi, **sempre fer merge a `main` i push**. No deixar canvis únicament a branques de feature.
+
 ## Visió general
 
 MVP d'un planificador de viatges en cotxe elèctric que inverteix l'enfocament dels planificadors actuals (ABRP, Google Maps): en lloc de planificar al voltant de carregadors, planifica al voltant d'**ancores temporals humanes** — l'hora de dinar i l'hora de dormir. La pausa de càrrega gran coincideix amb el dinar (~60-90 min), i si el viatge és prou llarg es busca hotel amb carregador.
