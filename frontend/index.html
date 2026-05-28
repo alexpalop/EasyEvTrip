@@ -431,6 +431,13 @@
       letter-spacing: 0.04em;
     }
     .stop-map-link:hover { color: var(--text-primary); }
+    .stop-map-sep {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
 
     /* Battery indicator */
     .battery-row {
@@ -1034,17 +1041,24 @@
     return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
   }
 
+  function electromapsUrl(lat, lon) {
+    return `https://www.electromaps.com/mapa?lat=${lat}&lng=${lon}`;
+  }
+
   function mapHtml(lat, lon, name, stopIdx, stopType, walkToLat, walkToLon) {
     if (lat == null || lon == null) return '';
     const link = gmapsUrl(lat, lon, walkToLat, walkToLon, stopType);
     const label = (stopType === 'lunch' || stopType === 'hotel') && walkToLat != null
       ? 'Ruta a peu al mapa →'
       : 'Veure al mapa →';
+    const emLink = stopType === 'charge'
+      ? ` <span class="stop-map-sep">·</span> <a href="${electromapsUrl(lat, lon)}" target="_blank" rel="noopener" class="stop-map-link">Estat a Electromaps →</a>`
+      : '';
     return `
       <div class="stop-map">
         <div id="map-stop-${stopIdx}" style="height:100%"></div>
       </div>
-      <a href="${link}" target="_blank" rel="noopener" class="stop-map-link">${label}</a>`;
+      <a href="${link}" target="_blank" rel="noopener" class="stop-map-link">${label}</a>${emLink}`;
   }
 
   function initStopMaps(plan) {
