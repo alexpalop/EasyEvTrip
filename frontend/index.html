@@ -431,12 +431,17 @@
       letter-spacing: 0.04em;
     }
     .stop-map-link:hover { color: var(--text-primary); }
-    .stop-map-sep {
-      display: inline-block;
-      margin-top: 6px;
-      font-size: 11px;
+
+    .model-specs {
       font-family: var(--font-mono);
-      color: var(--text-muted);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-top: 5px;
+      padding: 4px 8px;
+      background: var(--surface-dim);
+      border-radius: 4px;
+      border: 1px solid var(--border);
     }
 
     /* Battery indicator */
@@ -657,13 +662,8 @@
 
       <div class="field-group-label" data-i18n="group_car"></div>
       <div class="field">
-        <label for="car_category" data-i18n="label_car_category"></label>
-        <select id="car_category" required>
-          <option value="compact" data-i18n="car_compact"></option>
-          <option value="medium"  data-i18n="car_medium"></option>
-          <option value="large" selected data-i18n="car_large"></option>
-          <option value="premium" data-i18n="car_premium"></option>
-        </select>
+        <label for="car_model" data-i18n="label_car_model"></label>
+        <input type="text" id="car_model" data-i18n-ph="ph_car_model" autocomplete="off">
       </div>
 
       <div class="field-group-label" data-i18n="group_schedule"></div>
@@ -736,6 +736,100 @@
 <script>
   const BACKEND_URL = "https://easyevtrip.onrender.com";
   let _lastPayload = null;
+  let _selectedModel = null;
+
+  // ── Base de dades de models EV ────────────────────────────────────────────
+  // kwh: bateria útil (kWh) · wh100: consum real (kWh/100km) · pkw: DC pic (kW) · skw: DC sostingut (kW)
+  const EV_MODELS = [
+    // Compactes / urbans
+    { name: "Dacia Spring 65 CV",          kwh: 26.8, wh100: 14, pkw: 30,  skw: 22  },
+    { name: "Fiat 500e 24 kWh",            kwh: 21.3, wh100: 14, pkw: 50,  skw: 36  },
+    { name: "Fiat 500e 42 kWh",            kwh: 37.3, wh100: 15, pkw: 85,  skw: 60  },
+    { name: "Renault Zoe Z.E. 50",         kwh: 52.0, wh100: 17, pkw: 50,  skw: 36  },
+    { name: "Peugeot e-208 (2024)",        kwh: 54.0, wh100: 14, pkw: 100, skw: 70  },
+    { name: "Opel Corsa Electric",         kwh: 54.0, wh100: 14, pkw: 100, skw: 70  },
+    { name: "Alfa Romeo Junior Electric",  kwh: 54.0, wh100: 15, pkw: 100, skw: 70  },
+    { name: "Jeep Avenger Electric",       kwh: 54.0, wh100: 16, pkw: 100, skw: 70  },
+    { name: "DS 3 E-Tense",                kwh: 54.0, wh100: 15, pkw: 100, skw: 70  },
+    { name: "Opel Mokka Electric",         kwh: 54.0, wh100: 15, pkw: 100, skw: 70  },
+    { name: "Peugeot e-2008",              kwh: 54.0, wh100: 15, pkw: 100, skw: 70  },
+    { name: "Mini Cooper SE",              kwh: 40.7, wh100: 15, pkw: 75,  skw: 55  },
+    { name: "BMW i3 120Ah",                kwh: 42.2, wh100: 15, pkw: 50,  skw: 36  },
+    // Mitjos
+    { name: "Nissan Leaf 40 kWh",          kwh: 40.0, wh100: 18, pkw: 50,  skw: 36  },
+    { name: "Nissan Leaf Plus (62 kWh)",   kwh: 62.0, wh100: 18, pkw: 50,  skw: 36  },
+    { name: "MG ZS EV Standard",           kwh: 50.3, wh100: 18, pkw: 76,  skw: 55  },
+    { name: "MG ZS EV Long Range",         kwh: 72.6, wh100: 18, pkw: 76,  skw: 55  },
+    { name: "MG4 Standard (51 kWh)",       kwh: 51.0, wh100: 16, pkw: 117, skw: 85  },
+    { name: "MG4 Extended (64 kWh)",       kwh: 64.0, wh100: 16, pkw: 150, skw: 110 },
+    { name: "MG4 XPower",                  kwh: 64.0, wh100: 18, pkw: 150, skw: 110 },
+    { name: "Renault Megane E-Tech 60",    kwh: 60.0, wh100: 16, pkw: 130, skw: 90  },
+    { name: "Cupra Born 58 kWh",           kwh: 58.0, wh100: 17, pkw: 110, skw: 80  },
+    { name: "Cupra Born 77 kWh",           kwh: 77.0, wh100: 16, pkw: 135, skw: 100 },
+    { name: "VW ID.3 Pro (58 kWh)",        kwh: 58.0, wh100: 17, pkw: 110, skw: 80  },
+    { name: "VW ID.3 Pro S (77 kWh)",      kwh: 77.0, wh100: 17, pkw: 135, skw: 100 },
+    { name: "Skoda Enyaq 60",              kwh: 58.0, wh100: 18, pkw: 120, skw: 85  },
+    { name: "Kia Niro EV",                 kwh: 64.8, wh100: 17, pkw: 80,  skw: 58  },
+    { name: "Kia EV3 Standard",            kwh: 58.3, wh100: 15, pkw: 101, skw: 73  },
+    { name: "BYD Atto 3",                  kwh: 60.5, wh100: 17, pkw: 80,  skw: 58  },
+    { name: "Ora Funky Cat",               kwh: 63.0, wh100: 16, pkw: 80,  skw: 58  },
+    // Grans
+    { name: "Tesla Model 3 SR (2024)",     kwh: 60.0, wh100: 14, pkw: 170, skw: 125 },
+    { name: "Tesla Model 3 LR (2024)",     kwh: 82.0, wh100: 15, pkw: 250, skw: 185 },
+    { name: "Tesla Model 3 Performance",   kwh: 82.0, wh100: 17, pkw: 250, skw: 185 },
+    { name: "Tesla Model Y SR",            kwh: 60.0, wh100: 16, pkw: 170, skw: 125 },
+    { name: "Kia EV6 Standard (58 kWh)",   kwh: 58.0, wh100: 18, pkw: 240, skw: 175 },
+    { name: "Kia EV6 Long Range",          kwh: 77.4, wh100: 17, pkw: 240, skw: 175 },
+    { name: "Kia EV9 Long Range",          kwh: 99.8, wh100: 21, pkw: 240, skw: 175 },
+    { name: "Hyundai Ioniq 5 Standard",    kwh: 58.0, wh100: 18, pkw: 220, skw: 160 },
+    { name: "Hyundai Ioniq 5 Long Range",  kwh: 77.4, wh100: 17, pkw: 220, skw: 160 },
+    { name: "Hyundai Ioniq 6 SR (53 kWh)", kwh: 53.0, wh100: 14, pkw: 240, skw: 175 },
+    { name: "Hyundai Ioniq 6 LR (77 kWh)", kwh: 77.4, wh100: 14, pkw: 240, skw: 175 },
+    { name: "VW ID.4 Pro",                 kwh: 77.0, wh100: 18, pkw: 135, skw: 100 },
+    { name: "VW ID.4 GTX",                 kwh: 77.0, wh100: 20, pkw: 135, skw: 100 },
+    { name: "VW ID.5 Pro",                 kwh: 77.0, wh100: 17, pkw: 135, skw: 100 },
+    { name: "VW ID.7",                     kwh: 86.0, wh100: 16, pkw: 200, skw: 145 },
+    { name: "Skoda Enyaq 85",              kwh: 82.0, wh100: 18, pkw: 175, skw: 125 },
+    { name: "Skoda Enyaq RS",              kwh: 82.0, wh100: 20, pkw: 175, skw: 125 },
+    { name: "Audi Q4 e-tron 40",           kwh: 77.0, wh100: 18, pkw: 135, skw: 100 },
+    { name: "Audi Q4 e-tron 50 quattro",   kwh: 77.0, wh100: 19, pkw: 175, skw: 125 },
+    { name: "Ford Mustang Mach-E SR",      kwh: 70.0, wh100: 19, pkw: 150, skw: 110 },
+    { name: "Ford Mustang Mach-E LR",      kwh: 91.0, wh100: 20, pkw: 150, skw: 110 },
+    { name: "Polestar 2 SR",               kwh: 69.0, wh100: 18, pkw: 130, skw: 95  },
+    { name: "Polestar 2 LR",               kwh: 82.0, wh100: 18, pkw: 205, skw: 150 },
+    { name: "BMW iX3",                     kwh: 74.0, wh100: 18, pkw: 150, skw: 110 },
+    { name: "BMW i4 eDrive40",             kwh: 83.9, wh100: 17, pkw: 205, skw: 150 },
+    { name: "BYD Seal Standard",           kwh: 82.5, wh100: 17, pkw: 150, skw: 110 },
+    { name: "BYD Han EV",                  kwh: 85.4, wh100: 20, pkw: 120, skw: 88  },
+    { name: "Renault Scenic E-Tech 87",    kwh: 87.0, wh100: 17, pkw: 150, skw: 110 },
+    { name: "Volvo EX40 Twin",             kwh: 79.0, wh100: 19, pkw: 200, skw: 145 },
+    { name: "Volvo EC40",                  kwh: 79.0, wh100: 18, pkw: 200, skw: 145 },
+    // Premium
+    { name: "Tesla Model Y LR",            kwh: 82.0, wh100: 17, pkw: 250, skw: 185 },
+    { name: "Tesla Model Y Performance",   kwh: 82.0, wh100: 19, pkw: 250, skw: 185 },
+    { name: "Tesla Model S LR",            kwh: 100.0, wh100: 18, pkw: 250, skw: 185 },
+    { name: "Tesla Model X LR",            kwh: 100.0, wh100: 22, pkw: 250, skw: 185 },
+    { name: "Audi e-tron GT",              kwh: 93.4, wh100: 22, pkw: 270, skw: 200 },
+    { name: "Audi RS e-tron GT",           kwh: 93.4, wh100: 24, pkw: 270, skw: 200 },
+    { name: "Porsche Taycan RWD",          kwh: 93.4, wh100: 20, pkw: 270, skw: 200 },
+    { name: "Porsche Taycan 4S",           kwh: 93.4, wh100: 23, pkw: 270, skw: 200 },
+    { name: "Porsche Taycan Turbo",        kwh: 93.4, wh100: 26, pkw: 320, skw: 235 },
+    { name: "BMW iX xDrive50",             kwh: 111.5, wh100: 21, pkw: 200, skw: 145 },
+    { name: "BMW i7 xDrive60",             kwh: 105.7, wh100: 21, pkw: 195, skw: 142 },
+    { name: "Mercedes EQE 350",            kwh: 90.6, wh100: 19, pkw: 170, skw: 124 },
+    { name: "Mercedes EQS 450",            kwh: 107.8, wh100: 20, pkw: 200, skw: 145 },
+    { name: "Mercedes EQA 250",            kwh: 66.5, wh100: 17, pkw: 100, skw: 73  },
+    { name: "Mercedes EQB 350",            kwh: 66.5, wh100: 18, pkw: 100, skw: 73  },
+    { name: "Volvo EX90 Twin",             kwh: 111.0, wh100: 22, pkw: 250, skw: 185 },
+    { name: "Polestar 3 LR",               kwh: 111.0, wh100: 22, pkw: 250, skw: 185 },
+  ];
+
+  function _categoryFromKwh(kwh) {
+    if (kwh < 45) return 'compact';
+    if (kwh < 65) return 'medium';
+    if (kwh < 85) return 'large';
+    return 'premium';
+  }
 
   // ── i18n ──────────────────────────────────────────────────────────────────
   const TR = {
@@ -745,11 +839,8 @@
       group_route: "Ruta", group_car: "Cotxe", group_schedule: "Horaris i preferències",
       label_origin: "Origen", label_destination: "Destí",
       ph_origin: "Ciutat de sortida", ph_destination: "Ciutat d'arribada",
-      label_car_category: "Categoria de bateria",
-      car_compact: "Compacte — Zoe, e-208, 500e (≈ 220 km útils)",
-      car_medium:  "Mitjà — MG4, Megane E-Tech, ID.3 (≈ 320 km útils)",
-      car_large:   "Gran — Tesla M3 SR, EV6, Ioniq 5 (≈ 400 km útils)",
-      car_premium: "Premium — Tesla MY LR, EQE, e-tron GT (≈ 470 km útils)",
+      label_car_model: "Model del cotxe",
+      ph_car_model: "Tesla Model 3, Ioniq 5, ID.4…",
       label_travel_date: "Data del viatge", label_departure: "Hora de sortida",
       dep_early: "Matí d'hora (7–9h)", dep_mid: "Mig matí (9–11h)", dep_afternoon: "Tarda (15–17h)",
       label_lunch: "Finestra de dinar", lunch_none: "Sense parada a dinar",
@@ -777,11 +868,8 @@
       group_route: "Ruta", group_car: "Coche", group_schedule: "Horarios y preferencias",
       label_origin: "Origen", label_destination: "Destino",
       ph_origin: "Ciudad de salida", ph_destination: "Ciudad de llegada",
-      label_car_category: "Categoría de batería",
-      car_compact: "Compacto — Zoe, e-208, 500e (≈ 220 km útiles)",
-      car_medium:  "Medio — MG4, Megane E-Tech, ID.3 (≈ 320 km útiles)",
-      car_large:   "Grande — Tesla M3 SR, EV6, Ioniq 5 (≈ 400 km útiles)",
-      car_premium: "Premium — Tesla MY LR, EQE, e-tron GT (≈ 470 km útiles)",
+      label_car_model: "Modelo del coche",
+      ph_car_model: "Tesla Model 3, Ioniq 5, ID.4…",
       label_travel_date: "Fecha del viaje", label_departure: "Hora de salida",
       dep_early: "Mañana temprano (7–9h)", dep_mid: "Media mañana (9–11h)", dep_afternoon: "Tarde (15–17h)",
       label_lunch: "Ventana de comida", lunch_none: "Sin parada para comer",
@@ -809,11 +897,8 @@
       group_route: "Route", group_car: "Car", group_schedule: "Schedule & preferences",
       label_origin: "Origin", label_destination: "Destination",
       ph_origin: "Departure city", ph_destination: "Arrival city",
-      label_car_category: "Battery category",
-      car_compact: "Compact — Zoe, e-208, 500e (≈ 220 km range)",
-      car_medium:  "Mid-size — MG4, Megane E-Tech, ID.3 (≈ 320 km range)",
-      car_large:   "Large — Tesla M3 SR, EV6, Ioniq 5 (≈ 400 km range)",
-      car_premium: "Premium — Tesla MY LR, EQE, e-tron GT (≈ 470 km range)",
+      label_car_model: "Car model",
+      ph_car_model: "Tesla Model 3, Ioniq 5, ID.4…",
       label_travel_date: "Travel date", label_departure: "Departure time",
       dep_early: "Early morning (7–9h)", dep_mid: "Mid-morning (9–11h)", dep_afternoon: "Afternoon (15–17h)",
       label_lunch: "Lunch window", lunch_none: "No lunch stop",
@@ -841,11 +926,8 @@
       group_route: "Itinéraire", group_car: "Voiture", group_schedule: "Horaires et préférences",
       label_origin: "Origine", label_destination: "Destination",
       ph_origin: "Ville de départ", ph_destination: "Ville d'arrivée",
-      label_car_category: "Catégorie de batterie",
-      car_compact: "Compacte — Zoe, e-208, 500e (≈ 220 km utiles)",
-      car_medium:  "Moyenne — MG4, Megane E-Tech, ID.3 (≈ 320 km utiles)",
-      car_large:   "Grande — Tesla M3 SR, EV6, Ioniq 5 (≈ 400 km utiles)",
-      car_premium: "Premium — Tesla MY LR, EQE, e-tron GT (≈ 470 km utiles)",
+      label_car_model: "Modèle de voiture",
+      ph_car_model: "Tesla Model 3, Ioniq 5, ID.4…",
       label_travel_date: "Date du voyage", label_departure: "Heure de départ",
       dep_early: "Tôt le matin (7–9h)", dep_mid: "Milieu de matinée (9–11h)", dep_afternoon: "Après-midi (15–17h)",
       label_lunch: "Créneau déjeuner", lunch_none: "Sans pause déjeuner",
@@ -873,11 +955,8 @@
       group_route: "Percorso", group_car: "Auto", group_schedule: "Orari e preferenze",
       label_origin: "Origine", label_destination: "Destinazione",
       ph_origin: "Città di partenza", ph_destination: "Città di arrivo",
-      label_car_category: "Categoria batteria",
-      car_compact: "Compatta — Zoe, e-208, 500e (≈ 220 km utili)",
-      car_medium:  "Media — MG4, Megane E-Tech, ID.3 (≈ 320 km utili)",
-      car_large:   "Grande — Tesla M3 SR, EV6, Ioniq 5 (≈ 400 km utili)",
-      car_premium: "Premium — Tesla MY LR, EQE, e-tron GT (≈ 470 km utili)",
+      label_car_model: "Modello dell'auto",
+      ph_car_model: "Tesla Model 3, Ioniq 5, ID.4…",
       label_travel_date: "Data del viaggio", label_departure: "Ora di partenza",
       dep_early: "Presto (7–9h)", dep_mid: "Metà mattina (9–11h)", dep_afternoon: "Pomeriggio (15–17h)",
       label_lunch: "Fascia pranzo", lunch_none: "Senza sosta pranzo",
@@ -905,11 +984,8 @@
       group_route: "Route", group_car: "Auto", group_schedule: "Zeiten & Präferenzen",
       label_origin: "Startort", label_destination: "Zielort",
       ph_origin: "Abfahrtsstadt", ph_destination: "Ankunftsstadt",
-      label_car_category: "Batteriekategorie",
-      car_compact: "Kompakt — Zoe, e-208, 500e (≈ 220 km Reichweite)",
-      car_medium:  "Mittelklasse — MG4, Megane E-Tech, ID.3 (≈ 320 km Reichweite)",
-      car_large:   "Groß — Tesla M3 SR, EV6, Ioniq 5 (≈ 400 km Reichweite)",
-      car_premium: "Premium — Tesla MY LR, EQE, e-tron GT (≈ 470 km Reichweite)",
+      label_car_model: "Fahrzeugmodell",
+      ph_car_model: "Tesla Model 3, Ioniq 5, ID.4…",
       label_travel_date: "Reisedatum", label_departure: "Abfahrtszeit",
       dep_early: "Früh morgens (7–9h)", dep_mid: "Vormittag (9–11h)", dep_afternoon: "Nachmittag (15–17h)",
       label_lunch: "Mittagsfenster", lunch_none: "Keine Mittagspause",
@@ -981,16 +1057,21 @@
     submitBtn.innerHTML = `<div class="spinner"></div><span>${t('btn_calculating')}</span>`;
     resultDiv.innerHTML = "";
 
+    const m = _selectedModel;
     const payload = {
-      origin:           document.getElementById("origin").value,
-      destination:      document.getElementById("destination").value,
-      car_category:     document.getElementById("car_category").value,
-      travel_date:      document.getElementById("travel_date").value,
-      departure_window: document.getElementById("departure_window").value,
-      lunch_window:     document.getElementById("lunch_window").value,
-      needs_overnight:  document.getElementById("needs_overnight").value,
-      max_km_per_day:   parseInt(document.getElementById("max_km_per_day").value),
-      lang:             LANG,
+      origin:                document.getElementById("origin").value,
+      destination:           document.getElementById("destination").value,
+      car_category:          m ? _categoryFromKwh(m.kwh) : "large",
+      battery_kwh:           m ? m.kwh   : null,
+      consumption_kwh_100km: m ? m.wh100 : null,
+      peak_charge_kw:        m ? m.pkw   : null,
+      sustained_charge_kw:   m ? m.skw   : null,
+      travel_date:           document.getElementById("travel_date").value,
+      departure_window:      document.getElementById("departure_window").value,
+      lunch_window:          document.getElementById("lunch_window").value,
+      needs_overnight:       document.getElementById("needs_overnight").value,
+      max_km_per_day:        parseInt(document.getElementById("max_km_per_day").value),
+      lang:                  LANG,
     };
 
     try {
@@ -1041,24 +1122,17 @@
     return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
   }
 
-  function electromapsUrl(lat, lon) {
-    return `https://www.electromaps.com/mapa#lat=${lat}&lng=${lon}&zoom=15`;
-  }
-
   function mapHtml(lat, lon, name, stopIdx, stopType, walkToLat, walkToLon) {
     if (lat == null || lon == null) return '';
     const link = gmapsUrl(lat, lon, walkToLat, walkToLon, stopType);
     const label = (stopType === 'lunch' || stopType === 'hotel') && walkToLat != null
       ? 'Ruta a peu al mapa →'
       : 'Veure al mapa →';
-    const emLink = stopType === 'charge'
-      ? ` <span class="stop-map-sep">·</span> <a href="${electromapsUrl(lat, lon)}" target="_blank" rel="noopener" class="stop-map-link">Estat a Electromaps →</a>`
-      : '';
     return `
       <div class="stop-map">
         <div id="map-stop-${stopIdx}" style="height:100%"></div>
       </div>
-      <a href="${link}" target="_blank" rel="noopener" class="stop-map-link">${label}</a>${emLink}`;
+      <a href="${link}" target="_blank" rel="noopener" class="stop-map-link">${label}</a>`;
   }
 
   function initStopMaps(plan) {
@@ -1400,6 +1474,95 @@
 
   createAutocomplete('origin');
   createAutocomplete('destination');
+
+  // ── Autocompletat de model de cotxe (dades locals) ────────────────────────
+  function createModelAutocomplete(inputId) {
+    const input   = document.getElementById(inputId);
+    const wrapper = input.parentElement;
+
+    const list = document.createElement('ul');
+    list.className = 'autocomplete-list';
+    list.style.display = 'none';
+    wrapper.appendChild(list);
+
+    const specsEl = document.createElement('div');
+    specsEl.className = 'model-specs';
+    specsEl.style.display = 'none';
+    wrapper.appendChild(specsEl);
+
+    let focusedIdx = -1;
+
+    function filterModels(q) {
+      const terms = q.toLowerCase().trim().split(/\s+/);
+      return EV_MODELS.filter(m =>
+        terms.every(t => m.name.toLowerCase().includes(t))
+      ).slice(0, 8);
+    }
+
+    function selectModel(model) {
+      _selectedModel = model;
+      input.value    = model.name;
+      const range    = Math.round(model.kwh * 100 / model.wh100);
+      specsEl.textContent = `${model.kwh} kWh · ${model.pkw} kW DC · ${model.wh100} kWh/100km · ~${range} km`;
+      specsEl.style.display = 'block';
+      list.style.display    = 'none';
+    }
+
+    function renderList(items) {
+      list.innerHTML = '';
+      focusedIdx = -1;
+      if (!items.length) { list.style.display = 'none'; return; }
+      items.forEach(model => {
+        const range   = Math.round(model.kwh * 100 / model.wh100);
+        const li      = document.createElement('li');
+        li.className  = 'autocomplete-item';
+        const nameEl  = document.createElement('span');
+        nameEl.className   = 'autocomplete-city';
+        nameEl.textContent = model.name;
+        const specEl  = document.createElement('span');
+        specEl.className   = 'autocomplete-region';
+        specEl.textContent = `${model.kwh} kWh · ${model.pkw} kW DC · ~${range} km`;
+        li.appendChild(nameEl);
+        li.appendChild(specEl);
+        li.addEventListener('mousedown', e => { e.preventDefault(); selectModel(model); });
+        list.appendChild(li);
+      });
+      list.style.display = 'block';
+    }
+
+    input.addEventListener('input', () => {
+      _selectedModel        = null;
+      specsEl.style.display = 'none';
+      const q = input.value.trim();
+      if (q.length < 2) { list.style.display = 'none'; return; }
+      renderList(filterModels(q));
+    });
+
+    input.addEventListener('keydown', e => {
+      const items = list.querySelectorAll('.autocomplete-item');
+      if (list.style.display === 'none' || !items.length) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        focusedIdx = Math.min(focusedIdx + 1, items.length - 1);
+        items.forEach((el, i) => el.classList.toggle('focused', i === focusedIdx));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        focusedIdx = Math.max(focusedIdx - 1, 0);
+        items.forEach((el, i) => el.classList.toggle('focused', i === focusedIdx));
+      } else if (e.key === 'Enter' && focusedIdx >= 0) {
+        e.preventDefault();
+        items[focusedIdx].dispatchEvent(new MouseEvent('mousedown'));
+      } else if (e.key === 'Escape') {
+        list.style.display = 'none';
+      }
+    });
+
+    input.addEventListener('blur', () => {
+      setTimeout(() => { list.style.display = 'none'; }, 200);
+    });
+  }
+
+  createModelAutocomplete('car_model');
 </script>
 </body>
 </html>

@@ -11,7 +11,11 @@ class PlanRequest(BaseModel):
     """Dades que envia el frontend per demanar una planificació."""
     origin: str = Field(..., description="Ciutat d'origen, ex: 'Barcelona'")
     destination: str = Field(..., description="Ciutat de destí, ex: 'Sevilla'")
-    car_category: CarCategory = Field(..., description="Categoria del cotxe")
+    car_category: Optional[CarCategory] = Field(None, description="Categoria del cotxe (fallback si no hi ha specs)")
+    battery_kwh: Optional[float] = Field(None, description="Capacitat útil de la bateria (kWh)")
+    consumption_kwh_100km: Optional[float] = Field(None, description="Consum real (kWh/100km)")
+    peak_charge_kw: Optional[float] = Field(None, description="Potència DC màxima del cotxe (kW)")
+    sustained_charge_kw: Optional[float] = Field(None, description="Potència DC sostinguda (kW)")
     travel_date: date = Field(..., description="Data del viatge")
     departure_window: Literal["morning_early", "morning_late", "afternoon"] = Field(
         ..., description="Franja horària de sortida"

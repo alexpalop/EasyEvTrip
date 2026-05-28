@@ -602,7 +602,17 @@ def create_plan(req: PlanRequest) -> PlanResponse:
 
     lang           = normalize_lang(req.lang)
     max_km_per_day = req.max_km_per_day
-    car        = CAR[req.car_category]
+
+    if req.battery_kwh and req.consumption_kwh_100km and req.peak_charge_kw:
+        sus = req.sustained_charge_kw or round(req.peak_charge_kw * 0.65)
+        car = {
+            "range_km":    round(req.battery_kwh * 100 / req.consumption_kwh_100km),
+            "capacity_kwh": req.battery_kwh,
+            "peak_kw":     req.peak_charge_kw,
+            "sustained_kw": sus,
+        }
+    else:
+        car = CAR[req.car_category or "large"]
     dep_hour   = DEPARTURE_HOUR[req.departure_window]
     lunch_mid  = LUNCH_MID.get(req.lunch_window)
     km_per_pct = car["range_km"] / 85
