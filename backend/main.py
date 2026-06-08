@@ -115,14 +115,18 @@ def _coords_at_km(coords: list, target_km: float) -> tuple[float, float]:
 def _find_charger(lat: float, lon: float, min_kw: int = 50, networks: list[str] | None = None) -> dict | None:
     if not OCM_KEY:
         return None
+    # Quan hi ha filtre de xarxa, ampliem el radi: Tesla Superchargers poden estar
+    # desplaçats fins a 30 km del punt on la bateria es quedaria a 20%
+    search_radius = 40 if networks else 15
+    search_maxresults = 20 if networks else 8
     try:
         r = httpx.get(
             OCM_BASE,
             params={
                 "key": OCM_KEY,
                 "latitude": lat, "longitude": lon,
-                "distance": 15, "distanceunit": "KM",
-                "maxresults": 8, "minpowerkw": min_kw,
+                "distance": search_radius, "distanceunit": "KM",
+                "maxresults": search_maxresults, "minpowerkw": min_kw,
                 "compact": "true", "verbose": "false",
             },
             timeout=10,
