@@ -1375,8 +1375,8 @@
       const nextStop = plan.stops[i + 1];
       if (nextStop && stop.type !== 'hotel') {
         const segKm = Math.round((nextStop.km_pos ?? plan.total_distance_km) - (stop.km_pos ?? 0));
-        if (segKm > 0) {
-          html += `<div class="km-connector"><div class="km-pill">${segKm} km</div><div></div></div>`;
+        if (segKm >= 0) {
+          html += `<div class="km-connector"><div class="km-pill">${Math.max(1, segKm)} km</div><div></div></div>`;
         }
       }
 
@@ -1386,8 +1386,8 @@
         const nextStopAfterHotel = plan.stops[i + 1];
         if (nextStopAfterHotel) {
           const segKm = Math.round((nextStopAfterHotel.km_pos ?? plan.total_distance_km) - (stop.km_pos ?? 0));
-          if (segKm > 0) {
-            html += `<div class="km-connector"><div class="km-pill">${segKm} km</div><div></div></div>`;
+          if (segKm >= 0) {
+            html += `<div class="km-connector"><div class="km-pill">${Math.max(1, segKm)} km</div><div></div></div>`;
           }
         }
       }
