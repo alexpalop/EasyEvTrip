@@ -132,32 +132,42 @@ def _find_charger(lat: float, lon: float, min_kw: int = 50, networks: list[str] 
     except Exception:
         return None
 
-    best, best_score = None, -1.0
-    for poi in pois:
-        connections = poi.get("Connections") or []
-        power_kw = max(
-            (c.get("PowerKW") or 0 for c in connections if c.get("PowerKW")),
-            default=0,
-        )
-        if power_kw < min_kw:
-            continue
-        addr     = poi.get("AddressInfo") or {}
-        dist_km  = addr.get("Distance") or 999
-        operator = (poi.get("OperatorInfo") or {}).get("Title") or ""
-        if networks and operator and not any(n.lower() in operator.lower() for n in networks):
-            continue
-        score    = power_kw / (1 + dist_km)
-        if score > best_score:
-            best_score = score
-            best = {
-                "name":     addr.get("Title") or "Carregador DC",
-                "operator": operator,
-                "town":     addr.get("Town") or addr.get("StateOrProvince") or "",
-                "power_kw": int(power_kw),
-                "lat":      addr.get("Latitude"),
-                "lon":      addr.get("Longitude"),
-            }
-    return best
+    def _pick_best(pois: list, nets: list[str] | None) -> dict | None:
+        best, best_score = None, -1.0
+        for poi in pois:
+            connections = poi.get("Connections") or []
+            power_kw = max(
+                (c.get("PowerKW") or 0 for c in connections if c.get("PowerKW")),
+                default=0,
+            )
+            if power_kw < min_kw:
+                continue
+            addr     = poi.get("AddressInfo") or {}
+            dist_km  = addr.get("Distance") or 999
+            operator = (poi.get("OperatorInfo") or {}).get("Title") or ""
+            if nets and operator and not any(n.lower() in operator.lower() for n in nets):
+                continue
+            score = power_kw / (1 + dist_km)
+            if score > best_score:
+                best_score = score
+                best = {
+                    "name":     addr.get("Title") or "Carregador DC",
+                    "operator": operator,
+                    "town":     addr.get("Town") or addr.get("StateOrProvince") or "",
+                    "power_kw": int(power_kw),
+                    "lat":      addr.get("Latitude"),
+                    "lon":      addr.get("Longitude"),
+                    "network_match": True,
+                }
+        return best
+
+    result = _pick_best(pois, networks)
+    if result is None and networks:
+        # Filtre suau: si no hi ha cap carregador de la xarxa preferida, usa el millor disponible
+        result = _pick_best(pois, None)
+        if result:
+            result["network_match"] = False
+    return result
 
 
 # ── Walking time via Google Routes API ───────────────────────────────────────
@@ -355,14 +365,16 @@ def _make_lunch_stop(
     kw_str = f"{charger['power_kw']} kW" if charger else "DC"
     walk_label = _t(lang, "walk_min_label")
 
+    net_suffix = _t(lang, "network_fallback_suffix") if charger and not charger.get("network_match", True) else ""
+
     if restaurant:
         name     = restaurant["name"]
         rat      = f"Valoració {restaurant['rating']} · " if restaurant.get("rating") else ""
         walk_str = f"{int(restaurant['walk_min'])} {walk_label} · " if restaurant.get("walk_min") else ""
-        desc     = f"{rat}{walk_str}{op} {kw_str} · {c_min} min ({soc_from}% → 80%)"
+        desc     = f"{rat}{walk_str}{op} {kw_str} · {c_min} min ({soc_from}% → 80%){net_suffix}"
     else:
         name = _t(lang, "lunch_charge_name")
-        desc = f"{op} {kw_str} · {c_min} min ({soc_from}% → 80%)"
+        desc = f"{op} {kw_str} · {c_min} min ({soc_from}% → 80%){net_suffix}"
 
     stop = PlanStop(
         type="lunch",
@@ -479,6 +491,8 @@ def _charger_desc(charger: dict | None, c_min: int, from_soc: int, to_soc: int, 
     if charger:
         op   = charger["operator"] or charger["name"]
         desc = f"{op} · {charger['power_kw']} kW · {c_min} min ({from_soc}% → {to_soc}%)"
+        if not charger.get("network_match", True):
+            desc += _t(lang, "network_fallback_suffix")
         loc  = charger["town"] or None
     else:
         fb   = _t(lang, "charger_fallback")

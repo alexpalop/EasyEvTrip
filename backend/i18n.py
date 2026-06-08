@@ -118,6 +118,14 @@ STRINGS: dict[str, dict[str, str]] = {
         "it": "Caricatore DC",
         "de": "DC-Ladepunkt",
     },
+    "network_fallback_suffix": {
+        "ca": " · xarxa preferida no disponible",
+        "es": " · red preferida no disponible",
+        "en": " · preferred network unavailable",
+        "fr": " · réseau préféré indisponible",
+        "it": " · rete preferita non disponibile",
+        "de": " · bevorzugtes Netz nicht verfügbar",
+    },
     "walk_min_label": {
         "ca": "min a peu",
         "es": "min andando",
