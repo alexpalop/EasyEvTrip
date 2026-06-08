@@ -28,6 +28,7 @@ class PlanRequest(BaseModel):
     )
     lang: Optional[str] = Field("ca", description="Codi d'idioma BCP-47, ex: 'ca', 'es', 'en'")
     max_km_per_day: int = Field(700, ge=300, le=1000, description="Km màxims per jornada de conducció")
+    charger_networks: Optional[list[str]] = Field(None, description="Xarxes de carregadors acceptades (None = totes)")
 
 
 class PlanStop(BaseModel):

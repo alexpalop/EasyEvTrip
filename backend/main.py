@@ -112,7 +112,7 @@ def _coords_at_km(coords: list, target_km: float) -> tuple[float, float]:
 
 # ── Helpers OCM ───────────────────────────────────────────────────────────────
 
-def _find_charger(lat: float, lon: float, min_kw: int = 50) -> dict | None:
+def _find_charger(lat: float, lon: float, min_kw: int = 50, networks: list[str] | None = None) -> dict | None:
     if not OCM_KEY:
         return None
     try:
@@ -144,6 +144,8 @@ def _find_charger(lat: float, lon: float, min_kw: int = 50) -> dict | None:
         addr     = poi.get("AddressInfo") or {}
         dist_km  = addr.get("Distance") or 999
         operator = (poi.get("OperatorInfo") or {}).get("Title") or ""
+        if networks and not any(n.lower() in operator.lower() for n in networks):
+            continue
         score    = power_kw / (1 + dist_km)
         if score > best_score:
             best_score = score
@@ -288,11 +290,11 @@ def _fmt(h: float) -> str:
     return f"{int(h):02d}:{round((h % 1) * 60):02d}"
 
 
-def _resolve_charger(route_coords: list | None, km_pos: float) -> tuple[dict | None, float]:
+def _resolve_charger(route_coords: list | None, km_pos: float, networks: list[str] | None = None) -> tuple[dict | None, float]:
     if not route_coords:
         return None, DEFAULT_CHARGER_KW
     lon, lat    = _coords_at_km(route_coords, km_pos)
-    charger     = _find_charger(lat, lon)
+    charger     = _find_charger(lat, lon, networks=networks)
     kw_real     = (charger["power_kw"] * 0.80) if charger else DEFAULT_CHARGER_KW
     return charger, kw_real
 
@@ -499,6 +501,7 @@ def _drive_segment(
     lang: str = "ca",
     target_km: float | None = None,     # atura't aquí en lloc de dist_km (per dinar com a waypoint)
     max_daily_km: float = float("inf"), # km màxims d'aquesta jornada (des de start_km)
+    networks: list[str] | None = None,
 ) -> tuple[bool, float, int, float, float]:
     eff_target = target_km if target_km is not None else float(dist_km)
     km_per_pct = car["range_km"] / 85
@@ -531,7 +534,7 @@ def _drive_segment(
             hotel_soc  = max(15, _soc_after(cur_soc, km_drive, car))
             return False, hotel_hour, hotel_soc, cur_km + km_drive, dc_kwh
 
-        charger, kw_real = _resolve_charger(route_coords, cur_km + km_to_20)
+        charger, kw_real = _resolve_charger(route_coords, cur_km + km_to_20, networks=networks)
         c_min, c_kwh     = _charging(20, 80, car, kw_real)
         charge_end       = charge_hour + c_min / 60
 
@@ -601,6 +604,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
         raise HTTPException(502, "No s'ha pogut connectar amb l'API de rutes")
 
     lang           = normalize_lang(req.lang)
+    networks       = req.charger_networks or None
     max_km_per_day = req.max_km_per_day
 
     if req.battery_kwh and req.consumption_kwh_100km and req.peak_charge_kw:
@@ -687,7 +691,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
 
         if soc_at_lunch >= 10:
             # B-a: arriba al dinar amb bateria → dinar = parada de càrrega + restaurant
-            charger, kw_real = _resolve_charger(rc, km_to_lunch)
+            charger, kw_real = _resolve_charger(rc, km_to_lunch, networks=networks)
             lunch_stop, c_kwh, lunch_end = _make_lunch_stop(
                 charger, kw_real, soc_at_lunch, lunch_mid - 0.5, car, km_pos=round(km_to_lunch, 1), lang=lang
             )
@@ -699,7 +703,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
             # B-b: no arriba al dinar → càrrega mínima pre-dinar per arribar ~20% al restaurant
             km_to_20     = (cur_soc - 20) * km_per_pct
             stop_hour    = cur_hour + km_to_20 / avg_speed
-            charger, kw_real = _resolve_charger(rc, km_to_20)
+            charger, kw_real = _resolve_charger(rc, km_to_20, networks=networks)
 
             # Carrega just el necessari per arribar al dinar amb ~20% (+ 5% marge)
             km_precharge_to_lunch = km_to_lunch - km_to_20
@@ -744,7 +748,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
 
             elif soc_at_lunch_now >= 15 and lunch_arrival <= lunch_mid + 0.75:
                 # Fusiona dinar + càrrega + restaurant
-                charger2, kw_real2 = _resolve_charger(rc, cur_km + km_to_lunch_now)
+                charger2, kw_real2 = _resolve_charger(rc, cur_km + km_to_lunch_now, networks=networks)
                 lunch_stop, c_kwh2, lunch_end = _make_lunch_stop(
                     charger2, kw_real2, max(10, soc_at_lunch_now), lunch_arrival, car,
                     km_pos=round(cur_km + km_to_lunch_now, 1), lang=lang,
@@ -797,12 +801,12 @@ def create_plan(req: PlanRequest) -> PlanResponse:
                 # Condueix fins a la zona de dinar (amb càrregues DC si cal)
                 pre_arrived, pre_fh, pre_fs, pre_fkm, pre_dc = _drive_segment(
                     stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc,
-                    lang=lang, target_km=lunch_km_abs, max_daily_km=day_budget,
+                    lang=lang, target_km=lunch_km_abs, max_daily_km=day_budget, networks=networks,
                 )
                 total_dc_kwh += pre_dc
 
                 if pre_arrived:
-                    charger_l, kw_real_l = _resolve_charger(rc, pre_fkm)
+                    charger_l, kw_real_l = _resolve_charger(rc, pre_fkm, networks=networks)
                     lunch_obj, c_kwh_l, lunch_end = _make_lunch_stop(
                         charger_l, kw_real_l, max(10, pre_fs), lunch_mid - 0.5, car,
                         km_pos=round(pre_fkm, 1), lang=lang,
@@ -813,7 +817,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
                     km_used_pre_lunch = pre_fkm - day_km_start
                     arrived, fh, fs, fkm, extra_dc = _drive_segment(
                         stops, pre_fkm, 80, lunch_end, dist_km, car, avg_speed, rc,
-                        lang=lang, max_daily_km=day_budget - km_used_pre_lunch,
+                        lang=lang, max_daily_km=day_budget - km_used_pre_lunch, networks=networks,
                     )
                     total_dc_kwh += extra_dc
                 else:
@@ -822,13 +826,13 @@ def create_plan(req: PlanRequest) -> PlanResponse:
             else:
                 arrived, fh, fs, fkm, extra_dc = _drive_segment(
                     stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc,
-                    lang=lang, max_daily_km=day_budget,
+                    lang=lang, max_daily_km=day_budget, networks=networks,
                 )
                 total_dc_kwh += extra_dc
         else:
             arrived, fh, fs, fkm, extra_dc = _drive_segment(
                 stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc,
-                lang=lang, max_daily_km=day_budget,
+                lang=lang, max_daily_km=day_budget, networks=networks,
             )
             total_dc_kwh += extra_dc
 

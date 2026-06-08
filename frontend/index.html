@@ -620,6 +620,55 @@
       margin-top: 12px;
     }
 
+    /* Network chips */
+    .network-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .network-chip {
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface-dim);
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+      user-select: none;
+    }
+
+    .network-chip:hover {
+      border-color: var(--text-secondary);
+      color: var(--text-secondary);
+    }
+
+    .network-chip.selected {
+      background: var(--text-primary);
+      border-color: var(--text-primary);
+      color: #fff;
+    }
+
+    .field-group-label.label-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .networks-ctrl {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-weight: 400;
+    }
+
+    .networks-ctrl:hover { color: var(--text-primary); }
+
     /* Footer */
     footer {
       margin-top: 80px;
@@ -665,6 +714,12 @@
         <label for="car_model" data-i18n="label_car_model"></label>
         <input type="text" id="car_model" data-i18n-ph="ph_car_model" autocomplete="off">
       </div>
+
+      <div class="field-group-label label-flex">
+        <span data-i18n="group_networks"></span>
+        <span class="networks-ctrl" id="networks-toggle"></span>
+      </div>
+      <div class="network-grid" id="network-grid"></div>
 
       <div class="field-group-label" data-i18n="group_schedule"></div>
       <div class="field-row">
@@ -861,6 +916,7 @@
       label_max_km: "Ritme de conducció",
       km_relaxed: "Tranquil — màx. 450 km/dia", km_moderate: "Moderat — màx. 600 km/dia",
       km_standard: "Estàndard — màx. 750 km/dia", km_long: "Jornada llarga — màx. 900 km/dia",
+      group_networks: "Xarxes de càrrega", networks_all: "Totes", networks_none: "Cap",
       fb_title: "T'ha estat útil?", fb_subtitle: "La teva valoració ajuda a millorar l'eina.",
       fb_placeholder: "Alguna cosa a millorar? (opcional)",
       fb_submit: "Envia la valoració", fb_thanks: "Gràcies! El teu feedback ajuda molt.",
@@ -890,6 +946,7 @@
       label_max_km: "Ritmo de conducción",
       km_relaxed: "Tranquilo — máx. 450 km/día", km_moderate: "Moderado — máx. 600 km/día",
       km_standard: "Estándar — máx. 750 km/día", km_long: "Jornada larga — máx. 900 km/día",
+      group_networks: "Redes de carga", networks_all: "Todas", networks_none: "Ninguna",
       fb_title: "¿Te ha sido útil?", fb_subtitle: "Tu valoración ayuda a mejorar la herramienta.",
       fb_placeholder: "¿Algo que mejorar? (opcional)",
       fb_submit: "Enviar valoración", fb_thanks: "¡Gracias! Tu feedback ayuda mucho.",
@@ -919,6 +976,7 @@
       label_max_km: "Driving pace",
       km_relaxed: "Relaxed — max. 450 km/day", km_moderate: "Moderate — max. 600 km/day",
       km_standard: "Standard — max. 750 km/day", km_long: "Long day — max. 900 km/day",
+      group_networks: "Charging networks", networks_all: "All", networks_none: "None",
       fb_title: "Was this useful?", fb_subtitle: "Your rating helps improve the tool.",
       fb_placeholder: "Anything to improve? (optional)",
       fb_submit: "Send rating", fb_thanks: "Thanks! Your feedback helps a lot.",
@@ -948,6 +1006,7 @@
       label_max_km: "Rythme de conduite",
       km_relaxed: "Tranquille — max. 450 km/jour", km_moderate: "Modéré — max. 600 km/jour",
       km_standard: "Standard — max. 750 km/jour", km_long: "Longue journée — max. 900 km/jour",
+      group_networks: "Réseaux de recharge", networks_all: "Toutes", networks_none: "Aucun",
       fb_title: "Cela vous a-t-il été utile?", fb_subtitle: "Votre note aide à améliorer l'outil.",
       fb_placeholder: "Quelque chose à améliorer? (optionnel)",
       fb_submit: "Envoyer l'avis", fb_thanks: "Merci! Votre retour est très utile.",
@@ -977,6 +1036,7 @@
       label_max_km: "Ritmo di guida",
       km_relaxed: "Rilassato — max. 450 km/giorno", km_moderate: "Moderato — max. 600 km/giorno",
       km_standard: "Standard — max. 750 km/giorno", km_long: "Giornata lunga — max. 900 km/giorno",
+      group_networks: "Reti di ricarica", networks_all: "Tutte", networks_none: "Nessuna",
       fb_title: "Ti è stato utile?", fb_subtitle: "La tua valutazione aiuta a migliorare lo strumento.",
       fb_placeholder: "Qualcosa da migliorare? (facoltativo)",
       fb_submit: "Invia valutazione", fb_thanks: "Grazie! Il tuo feedback è molto utile.",
@@ -1006,6 +1066,7 @@
       label_max_km: "Fahrttempo",
       km_relaxed: "Entspannt — max. 450 km/Tag", km_moderate: "Moderat — max. 600 km/Tag",
       km_standard: "Standard — max. 750 km/Tag", km_long: "Langer Tag — max. 900 km/Tag",
+      group_networks: "Ladenetzwerke", networks_all: "Alle", networks_none: "Keine",
       fb_title: "War das nützlich?", fb_subtitle: "Deine Bewertung hilft, das Tool zu verbessern.",
       fb_placeholder: "Etwas zu verbessern? (optional)",
       fb_submit: "Bewertung senden", fb_thanks: "Danke! Dein Feedback hilft sehr.",
@@ -1036,6 +1097,49 @@
 
   applyTranslations();
 
+  // ── Network chip selector ─────────────────────────────────────────────────
+  const NETWORKS = [
+    { name: 'Ionity',        match: 'ionity' },
+    { name: 'Tesla',         match: 'tesla' },
+    { name: 'Fastned',       match: 'fastned' },
+    { name: 'EnBW',          match: 'enbw' },
+    { name: 'Recharge',      match: 'recharge' },
+    { name: 'ChargePoint',   match: 'chargepoint' },
+    { name: 'Iberdrola',     match: 'iberdrola' },
+    { name: 'Endesa X',      match: 'endesa' },
+    { name: 'Repsol',        match: 'repsol' },
+    { name: 'Zunder',        match: 'zunder' },
+    { name: 'TotalEnergies', match: 'totalenergies' },
+  ];
+
+  function syncNetworksToggle() {
+    const chips = document.querySelectorAll('#network-grid .network-chip');
+    const allSel = [...chips].every(c => c.classList.contains('selected'));
+    document.getElementById('networks-toggle').textContent = allSel ? t('networks_none') : t('networks_all');
+  }
+
+  (function initNetworkChips() {
+    const grid = document.getElementById('network-grid');
+    NETWORKS.forEach(net => {
+      const chip = document.createElement('span');
+      chip.className = 'network-chip selected';
+      chip.dataset.match = net.match;
+      chip.textContent = net.name;
+      chip.addEventListener('click', () => {
+        chip.classList.toggle('selected');
+        syncNetworksToggle();
+      });
+      grid.appendChild(chip);
+    });
+    document.getElementById('networks-toggle').addEventListener('click', () => {
+      const chips = document.querySelectorAll('#network-grid .network-chip');
+      const allSel = [...chips].every(c => c.classList.contains('selected'));
+      chips.forEach(c => c.classList.toggle('selected', !allSel));
+      syncNetworksToggle();
+    });
+    syncNetworksToggle();
+  })();
+
   document.getElementById("travel_date").valueAsDate = new Date(Date.now() + 86400000);
 
   const observer = new IntersectionObserver((entries) => {
@@ -1061,6 +1165,7 @@
     resultDiv.innerHTML = "";
 
     const m = _selectedModel;
+    const selNets = [...document.querySelectorAll('#network-grid .network-chip.selected')].map(c => c.dataset.match);
     const payload = {
       origin:                document.getElementById("origin").value,
       destination:           document.getElementById("destination").value,
@@ -1074,6 +1179,7 @@
       lunch_window:          document.getElementById("lunch_window").value,
       needs_overnight:       document.getElementById("needs_overnight").value,
       max_km_per_day:        parseInt(document.getElementById("max_km_per_day").value),
+      charger_networks:      selNets.length > 0 && selNets.length < NETWORKS.length ? selNets : null,
       lang:                  LANG,
     };
 
