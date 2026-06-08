@@ -144,7 +144,7 @@ def _find_charger(lat: float, lon: float, min_kw: int = 50, networks: list[str] 
         addr     = poi.get("AddressInfo") or {}
         dist_km  = addr.get("Distance") or 999
         operator = (poi.get("OperatorInfo") or {}).get("Title") or ""
-        if networks and not any(n.lower() in operator.lower() for n in networks):
+        if networks and operator and not any(n.lower() in operator.lower() for n in networks):
             continue
         score    = power_kw / (1 + dist_km)
         if score > best_score:
@@ -307,6 +307,7 @@ def _make_lunch_stop(
     car: dict,
     km_pos: float | None = None,
     lang: str = "ca",
+    route_coords: list | None = None,
 ) -> tuple[PlanStop, float, float]:
     """
     Construeix una parada de dinar amb càrrega.
@@ -314,9 +315,19 @@ def _make_lunch_stop(
     """
     c_min, c_kwh = _charging(soc_from, 80, car, kw_real)
 
+    # Coordenades efectives: carregador si en tenim, altrament punt de la ruta
+    def _eff_coords() -> tuple[float | None, float | None]:
+        if charger and charger.get("lat") and charger.get("lon"):
+            return charger["lat"], charger["lon"]
+        if route_coords and km_pos is not None:
+            flon, flat = _coords_at_km(route_coords, km_pos)
+            return flat, flon
+        return None, None
+
     # Si la càrrega seria massa curta (bateria ja alta), fem dinar simple sense carregador
     if c_min < MIN_LUNCH_CHARGE_MIN:
         dep_hour = arrival_hour + 0.75
+        eff_lat, eff_lon = _eff_coords()
         return PlanStop(
             type="lunch",
             name=_t(lang, "lunch_name"),
@@ -325,18 +336,20 @@ def _make_lunch_stop(
             departure_time=_fmt(dep_hour),
             battery_arrival=soc_from,
             battery_departure=soc_from,
-            lat=charger.get("lat") if charger else None,
-            lon=charger.get("lon") if charger else None,
+            lat=eff_lat,
+            lon=eff_lon,
             km_pos=km_pos,
         ), 0.0, dep_hour
 
     lunch_dur    = max(60, c_min)
     dep_hour     = arrival_hour + lunch_dur / 60
 
+    eff_lat, eff_lon = _eff_coords()
+
     # Restaurant proper al carregador (Fase 5)
     restaurant = None
-    if charger and charger.get("lat") and charger.get("lon"):
-        restaurant = _find_restaurant(charger["lat"], charger["lon"])
+    if eff_lat and eff_lon:
+        restaurant = _find_restaurant(eff_lat, eff_lon)
 
     op = (charger or {}).get("operator") or (charger or {}).get("name") or _t(lang, "charger_fallback")
     kw_str = f"{charger['power_kw']} kW" if charger else "DC"
@@ -360,8 +373,8 @@ def _make_lunch_stop(
         departure_time=_fmt(dep_hour),
         battery_arrival=soc_from,
         battery_departure=80,
-        lat=charger.get("lat") if charger else None,
-        lon=charger.get("lon") if charger else None,
+        lat=eff_lat,
+        lon=eff_lon,
         km_pos=km_pos,
         walk_to_lat=restaurant.get("lat") if restaurant else None,
         walk_to_lon=restaurant.get("lon") if restaurant else None,
@@ -693,7 +706,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
             # B-a: arriba al dinar amb bateria → dinar = parada de càrrega + restaurant
             charger, kw_real = _resolve_charger(rc, km_to_lunch, networks=networks)
             lunch_stop, c_kwh, lunch_end = _make_lunch_stop(
-                charger, kw_real, soc_at_lunch, lunch_mid - 0.5, car, km_pos=round(km_to_lunch, 1), lang=lang
+                charger, kw_real, soc_at_lunch, lunch_mid - 0.5, car, km_pos=round(km_to_lunch, 1), lang=lang, route_coords=rc,
             )
             total_dc_kwh += c_kwh
             stops.append(lunch_stop)
@@ -751,7 +764,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
                 charger2, kw_real2 = _resolve_charger(rc, cur_km + km_to_lunch_now, networks=networks)
                 lunch_stop, c_kwh2, lunch_end = _make_lunch_stop(
                     charger2, kw_real2, max(10, soc_at_lunch_now), lunch_arrival, car,
-                    km_pos=round(cur_km + km_to_lunch_now, 1), lang=lang,
+                    km_pos=round(cur_km + km_to_lunch_now, 1), lang=lang, route_coords=rc,
                 )
                 total_dc_kwh += c_kwh2
                 stops.append(lunch_stop)
@@ -809,7 +822,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
                     charger_l, kw_real_l = _resolve_charger(rc, pre_fkm, networks=networks)
                     lunch_obj, c_kwh_l, lunch_end = _make_lunch_stop(
                         charger_l, kw_real_l, max(10, pre_fs), lunch_mid - 0.5, car,
-                        km_pos=round(pre_fkm, 1), lang=lang,
+                        km_pos=round(pre_fkm, 1), lang=lang, route_coords=rc,
                     )
                     total_dc_kwh += c_kwh_l
                     stops.append(lunch_obj)
