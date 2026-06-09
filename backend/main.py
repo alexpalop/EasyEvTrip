@@ -152,7 +152,7 @@ def _find_charger(lat: float, lon: float, min_kw: int = 50, networks: list[str] 
             addr     = poi.get("AddressInfo") or {}
             dist_km  = addr.get("Distance") or 999
             operator = (poi.get("OperatorInfo") or {}).get("Title") or ""
-            if nets and operator and not any(n.lower() in operator.lower() for n in nets):
+            if nets and not (operator and any(n.lower() in operator.lower() for n in nets)):
                 continue
             score = power_kw / (1 + dist_km)
             if score > best_score:
@@ -410,11 +410,8 @@ def _find_hotels(lat: float, lon: float, max_results: int = 6, min_rating: float
     results = _places_nearby("lodging", lat, lon, 8000.0, fields)
     if not results:
         return []
-    rated = sorted(
-        [h for h in results if h.get("rating", 0) >= min_rating],
-        key=lambda x: x.get("rating", 0),
-        reverse=True,
-    ) or results
+    filtered = [h for h in results if h.get("rating", 0) >= min_rating]
+    rated = sorted(filtered, key=lambda x: x.get("rating", 0), reverse=True) if filtered else sorted(results, key=lambda x: x.get("rating", 0), reverse=True)
     hotels = []
     for h in rated[:max_results]:
         loc = h.get("location") or {}
@@ -687,10 +684,21 @@ def create_plan(req: PlanRequest) -> PlanResponse:
             if 0 < km_lunch < dist_km:
                 soc_l = _soc_after(START_SOC, km_lunch, car)
                 _llon, _llat = _coords_at_km(rc, km_lunch) if rc else (None, None)
+                restaurant = _find_restaurant(_llat, _llon, min_rating=min_rating_rest) if _llat and _llon else None
+                if restaurant:
+                    rat      = f"Valoració {restaurant['rating']} · " if restaurant.get("rating") else ""
+                    walk_str = f"{int(restaurant['walk_min'])} min a peu · " if restaurant.get("walk_min") else ""
+                    ln_name  = restaurant["name"]
+                    ln_desc  = f"{rat}{walk_str}{_t(lang, 'lunch_no_charge_desc')}"
+                    wt_lat, wt_lon = restaurant["lat"], restaurant["lon"]
+                else:
+                    ln_name  = _t(lang, "lunch_name")
+                    ln_desc  = _t(lang, "lunch_no_charge_desc")
+                    wt_lat = wt_lon = None
                 stops.append(PlanStop(
                     type="lunch",
-                    name=_t(lang, "lunch_name"),
-                    description=_t(lang, "lunch_no_charge_desc"),
+                    name=ln_name,
+                    description=ln_desc,
                     arrival_time=_fmt(lunch_mid - 0.375),
                     departure_time=_fmt(lunch_mid + 0.375),
                     battery_arrival=soc_l,
@@ -698,6 +706,8 @@ def create_plan(req: PlanRequest) -> PlanResponse:
                     lat=_llat,
                     lon=_llon,
                     km_pos=round(km_lunch, 1),
+                    walk_to_lat=wt_lat,
+                    walk_to_lon=wt_lon,
                 ))
                 total_min += 45
                 arr_hour  += 0.75
