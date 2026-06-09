@@ -669,6 +669,26 @@
 
     .networks-ctrl:hover { color: var(--text-primary); }
 
+    /* ── Star pickers (qualitat mínima) ────────────────────────────── */
+    .star-picker {
+      display: flex;
+      gap: 1px;
+      padding: 5px 0 2px;
+    }
+
+    .star-pick {
+      font-size: 20px;
+      cursor: pointer;
+      color: #D5D3CE;
+      transition: color 0.1s, transform 0.1s;
+      user-select: none;
+      line-height: 1;
+    }
+    .star-pick:hover, .star-pick.active { color: #F5A42A; }
+    .star-pick:hover { transform: scale(1.1); }
+
+    .field-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+
     /* Footer */
     footer {
       margin-top: 80px;
@@ -764,6 +784,40 @@
             <option value="750" selected data-i18n="km_standard"></option>
             <option value="900"  data-i18n="km_long"></option>
           </select>
+        </div>
+      </div>
+
+      <div class="field-group-label" data-i18n="group_quality"></div>
+      <div class="field-row field-row-3">
+        <div class="field">
+          <label data-i18n="label_stars_charger"></label>
+          <div class="star-picker" id="stars-charger" data-value="2">
+            <span class="star-pick" data-v="1">★</span>
+            <span class="star-pick" data-v="2">★</span>
+            <span class="star-pick" data-v="3">★</span>
+            <span class="star-pick" data-v="4">★</span>
+            <span class="star-pick" data-v="5">★</span>
+          </div>
+        </div>
+        <div class="field">
+          <label data-i18n="label_stars_hotel"></label>
+          <div class="star-picker" id="stars-hotel" data-value="3">
+            <span class="star-pick" data-v="1">★</span>
+            <span class="star-pick" data-v="2">★</span>
+            <span class="star-pick" data-v="3">★</span>
+            <span class="star-pick" data-v="4">★</span>
+            <span class="star-pick" data-v="5">★</span>
+          </div>
+        </div>
+        <div class="field">
+          <label data-i18n="label_stars_restaurant"></label>
+          <div class="star-picker" id="stars-restaurant" data-value="3">
+            <span class="star-pick" data-v="1">★</span>
+            <span class="star-pick" data-v="2">★</span>
+            <span class="star-pick" data-v="3">★</span>
+            <span class="star-pick" data-v="4">★</span>
+            <span class="star-pick" data-v="5">★</span>
+          </div>
         </div>
       </div>
 
@@ -917,6 +971,8 @@
       km_relaxed: "Tranquil — màx. 450 km/dia", km_moderate: "Moderat — màx. 600 km/dia",
       km_standard: "Estàndard — màx. 750 km/dia", km_long: "Jornada llarga — màx. 900 km/dia",
       group_networks: "Xarxes de càrrega", networks_all: "Totes", networks_none: "Cap",
+      group_quality: "Qualitat mínima dels llocs",
+      label_stars_charger: "Carregador", label_stars_hotel: "Hotel", label_stars_restaurant: "Restaurant",
       fb_title: "T'ha estat útil?", fb_subtitle: "La teva valoració ajuda a millorar l'eina.",
       fb_placeholder: "Alguna cosa a millorar? (opcional)",
       fb_submit: "Envia la valoració", fb_thanks: "Gràcies! El teu feedback ajuda molt.",
@@ -947,6 +1003,8 @@
       km_relaxed: "Tranquilo — máx. 450 km/día", km_moderate: "Moderado — máx. 600 km/día",
       km_standard: "Estándar — máx. 750 km/día", km_long: "Jornada larga — máx. 900 km/día",
       group_networks: "Redes de carga", networks_all: "Todas", networks_none: "Ninguna",
+      group_quality: "Calidad mínima de los lugares",
+      label_stars_charger: "Cargador", label_stars_hotel: "Hotel", label_stars_restaurant: "Restaurante",
       fb_title: "¿Te ha sido útil?", fb_subtitle: "Tu valoración ayuda a mejorar la herramienta.",
       fb_placeholder: "¿Algo que mejorar? (opcional)",
       fb_submit: "Enviar valoración", fb_thanks: "¡Gracias! Tu feedback ayuda mucho.",
@@ -977,6 +1035,8 @@
       km_relaxed: "Relaxed — max. 450 km/day", km_moderate: "Moderate — max. 600 km/day",
       km_standard: "Standard — max. 750 km/day", km_long: "Long day — max. 900 km/day",
       group_networks: "Charging networks", networks_all: "All", networks_none: "None",
+      group_quality: "Minimum place quality",
+      label_stars_charger: "Charger", label_stars_hotel: "Hotel", label_stars_restaurant: "Restaurant",
       fb_title: "Was this useful?", fb_subtitle: "Your rating helps improve the tool.",
       fb_placeholder: "Anything to improve? (optional)",
       fb_submit: "Send rating", fb_thanks: "Thanks! Your feedback helps a lot.",
@@ -1007,6 +1067,8 @@
       km_relaxed: "Tranquille — max. 450 km/jour", km_moderate: "Modéré — max. 600 km/jour",
       km_standard: "Standard — max. 750 km/jour", km_long: "Longue journée — max. 900 km/jour",
       group_networks: "Réseaux de recharge", networks_all: "Toutes", networks_none: "Aucun",
+      group_quality: "Qualité minimale des lieux",
+      label_stars_charger: "Borne", label_stars_hotel: "Hôtel", label_stars_restaurant: "Restaurant",
       fb_title: "Cela vous a-t-il été utile?", fb_subtitle: "Votre note aide à améliorer l'outil.",
       fb_placeholder: "Quelque chose à améliorer? (optionnel)",
       fb_submit: "Envoyer l'avis", fb_thanks: "Merci! Votre retour est très utile.",
@@ -1037,6 +1099,8 @@
       km_relaxed: "Rilassato — max. 450 km/giorno", km_moderate: "Moderato — max. 600 km/giorno",
       km_standard: "Standard — max. 750 km/giorno", km_long: "Giornata lunga — max. 900 km/giorno",
       group_networks: "Reti di ricarica", networks_all: "Tutte", networks_none: "Nessuna",
+      group_quality: "Qualità minima dei luoghi",
+      label_stars_charger: "Colonnina", label_stars_hotel: "Hotel", label_stars_restaurant: "Ristorante",
       fb_title: "Ti è stato utile?", fb_subtitle: "La tua valutazione aiuta a migliorare lo strumento.",
       fb_placeholder: "Qualcosa da migliorare? (facoltativo)",
       fb_submit: "Invia valutazione", fb_thanks: "Grazie! Il tuo feedback è molto utile.",
@@ -1067,6 +1131,8 @@
       km_relaxed: "Entspannt — max. 450 km/Tag", km_moderate: "Moderat — max. 600 km/Tag",
       km_standard: "Standard — max. 750 km/Tag", km_long: "Langer Tag — max. 900 km/Tag",
       group_networks: "Ladenetzwerke", networks_all: "Alle", networks_none: "Keine",
+      group_quality: "Mindestqualität der Orte",
+      label_stars_charger: "Ladestation", label_stars_hotel: "Hotel", label_stars_restaurant: "Restaurant",
       fb_title: "War das nützlich?", fb_subtitle: "Deine Bewertung hilft, das Tool zu verbessern.",
       fb_placeholder: "Etwas zu verbessern? (optional)",
       fb_submit: "Bewertung senden", fb_thanks: "Danke! Dein Feedback hilft sehr.",
@@ -1180,6 +1246,9 @@
       needs_overnight:       document.getElementById("needs_overnight").value,
       max_km_per_day:        parseInt(document.getElementById("max_km_per_day").value),
       charger_networks:      selNets.length > 0 && selNets.length < NETWORKS.length ? selNets : null,
+      min_stars_charger:     parseInt(document.getElementById('stars-charger').dataset.value),
+      min_stars_hotel:       parseInt(document.getElementById('stars-hotel').dataset.value),
+      min_stars_restaurant:  parseInt(document.getElementById('stars-restaurant').dataset.value),
       lang:                  LANG,
     };
 
@@ -1668,6 +1737,36 @@
   }
 
   createModelAutocomplete('car_model');
+
+  // ── Star pickers (qualitat mínima de llocs) ───────────────────────────────
+  function initStarPicker(pickerId) {
+    const picker = document.getElementById(pickerId);
+    if (!picker) return;
+    const stars = picker.querySelectorAll('.star-pick');
+    let value = parseInt(picker.dataset.value) || 3;
+
+    function updateStars(v) {
+      stars.forEach(s => s.classList.toggle('active', parseInt(s.dataset.v) <= v));
+    }
+
+    updateStars(value);
+
+    stars.forEach(star => {
+      star.addEventListener('mouseenter', () => {
+        stars.forEach(s => s.classList.toggle('active', parseInt(s.dataset.v) <= parseInt(star.dataset.v)));
+      });
+      star.addEventListener('mouseleave', () => updateStars(value));
+      star.addEventListener('click', () => {
+        value = parseInt(star.dataset.v);
+        picker.dataset.value = value;
+        updateStars(value);
+      });
+    });
+  }
+
+  initStarPicker('stars-charger');
+  initStarPicker('stars-hotel');
+  initStarPicker('stars-restaurant');
 </script>
 </body>
 </html>

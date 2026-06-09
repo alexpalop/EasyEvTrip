@@ -29,6 +29,9 @@ class PlanRequest(BaseModel):
     lang: Optional[str] = Field("ca", description="Codi d'idioma BCP-47, ex: 'ca', 'es', 'en'")
     max_km_per_day: int = Field(700, ge=300, le=1000, description="Km màxims per jornada de conducció")
     charger_networks: Optional[list[str]] = Field(None, description="Xarxes de carregadors acceptades (None = totes)")
+    min_stars_charger: int = Field(2, ge=1, le=5, description="Qualitat mínima del carregador DC (1=22kW, 2=50kW, 3=100kW, 4=150kW, 5=200kW)")
+    min_stars_hotel: int = Field(3, ge=1, le=5, description="Valoració mínima de l'hotel (1–5 estrelles → 1.0–4.5 rating)")
+    min_stars_restaurant: int = Field(3, ge=1, le=5, description="Valoració mínima del restaurant (1–5 estrelles → 1.0–4.5 rating)")
 
 
 class PlanStop(BaseModel):

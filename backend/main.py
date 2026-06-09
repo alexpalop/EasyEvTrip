@@ -58,6 +58,9 @@ MAX_KM_PER_DAY     = 700   # límit de km per jornada (independentment de l'hora
 MAX_WALK_MINUTES      = 10  # màxim temps de caminada acceptable (carregador → restaurant/hotel)
 MIN_LUNCH_CHARGE_MIN  = 12  # càrrega <12 min al dinar no val la pena — dinar simple
 
+CHARGER_STARS_TO_KW = {1: 22, 2: 50, 3: 100, 4: 150, 5: 200}
+STARS_TO_RATING     = {1: 1.0, 2: 2.5, 3: 3.5, 4: 4.0, 5: 4.5}
+
 # ── Helpers ORS ───────────────────────────────────────────────────────────────
 
 def _geocode(city: str) -> tuple[float, float]:
@@ -229,7 +232,7 @@ def _places_nearby(place_type: str, lat: float, lon: float, radius: float, field
         return []
 
 
-def _find_restaurant(lat: float, lon: float) -> dict | None:
+def _find_restaurant(lat: float, lon: float, min_rating: float = 3.5) -> dict | None:
     if not PLACES_KEY:
         return None
     fields = "places.displayName,places.rating,places.location"
@@ -239,7 +242,7 @@ def _find_restaurant(lat: float, lon: float) -> dict | None:
         # Filtra per rating mínim i extreu coords
         candidates = []
         for p in results:
-            if p.get("rating", 0) < 3.5:
+            if p.get("rating", 0) < min_rating:
                 continue
             loc  = (p.get("location") or {})
             plat = loc.get("latitude")
@@ -304,11 +307,11 @@ def _fmt(h: float) -> str:
     return f"{int(h):02d}:{round((h % 1) * 60):02d}"
 
 
-def _resolve_charger(route_coords: list | None, km_pos: float, networks: list[str] | None = None) -> tuple[dict | None, float]:
+def _resolve_charger(route_coords: list | None, km_pos: float, networks: list[str] | None = None, min_kw: int = 50) -> tuple[dict | None, float]:
     if not route_coords:
         return None, DEFAULT_CHARGER_KW
     lon, lat    = _coords_at_km(route_coords, km_pos)
-    charger     = _find_charger(lat, lon, networks=networks)
+    charger     = _find_charger(lat, lon, min_kw=min_kw, networks=networks)
     kw_real     = (charger["power_kw"] * 0.80) if charger else DEFAULT_CHARGER_KW
     return charger, kw_real
 
@@ -322,6 +325,7 @@ def _make_lunch_stop(
     km_pos: float | None = None,
     lang: str = "ca",
     route_coords: list | None = None,
+    min_rating_restaurant: float = 3.5,
 ) -> tuple[PlanStop, float, float]:
     """
     Construeix una parada de dinar amb càrrega.
@@ -363,7 +367,7 @@ def _make_lunch_stop(
     # Restaurant proper al carregador (Fase 5)
     restaurant = None
     if eff_lat and eff_lon:
-        restaurant = _find_restaurant(eff_lat, eff_lon)
+        restaurant = _find_restaurant(eff_lat, eff_lon, min_rating=min_rating_restaurant)
 
     op = (charger or {}).get("operator") or (charger or {}).get("name") or _t(lang, "charger_fallback")
     kw_str = f"{charger['power_kw']} kW" if charger else "DC"
@@ -398,7 +402,7 @@ def _make_lunch_stop(
     return stop, c_kwh, dep_hour
 
 
-def _find_hotels(lat: float, lon: float, max_results: int = 6) -> list[dict]:
+def _find_hotels(lat: float, lon: float, max_results: int = 6, min_rating: float = 3.5) -> list[dict]:
     """Retorna fins a max_results hotels propers, ordenats per rating."""
     if not PLACES_KEY:
         return []
@@ -407,7 +411,7 @@ def _find_hotels(lat: float, lon: float, max_results: int = 6) -> list[dict]:
     if not results:
         return []
     rated = sorted(
-        [h for h in results if h.get("rating", 0) >= 3.5],
+        [h for h in results if h.get("rating", 0) >= min_rating],
         key=lambda x: x.get("rating", 0),
         reverse=True,
     ) or results
@@ -434,6 +438,7 @@ def _make_hotel_stop(
     soc_arrival: int,
     arrival_hour: float,
     lang: str = "ca",
+    min_rating_hotel: float = 3.5,
 ) -> PlanStop | None:
     """
     Cerca hotel + carregador accessible a peu. Retorna None si no en troba cap combo vàlid.
@@ -443,7 +448,7 @@ def _make_hotel_stop(
         return None
 
     lon, lat = _coords_at_km(route_coords, km_pos)
-    hotels   = _find_hotels(lat, lon)
+    hotels   = _find_hotels(lat, lon, min_rating=min_rating_hotel)
 
     for hotel in hotels:
         hlat = hotel["lat"]
@@ -533,6 +538,7 @@ def _drive_segment(
     target_km: float | None = None,     # atura't aquí en lloc de dist_km (per dinar com a waypoint)
     max_daily_km: float = float("inf"), # km màxims d'aquesta jornada (des de start_km)
     networks: list[str] | None = None,
+    min_kw_dc: int = 50,
 ) -> tuple[bool, float, int, float, float]:
     eff_target = target_km if target_km is not None else float(dist_km)
     km_per_pct = car["range_km"] / 85
@@ -565,7 +571,7 @@ def _drive_segment(
             hotel_soc  = max(15, _soc_after(cur_soc, km_drive, car))
             return False, hotel_hour, hotel_soc, cur_km + km_drive, dc_kwh
 
-        charger, kw_real = _resolve_charger(route_coords, cur_km + km_to_20, networks=networks)
+        charger, kw_real = _resolve_charger(route_coords, cur_km + km_to_20, networks=networks, min_kw=min_kw_dc)
         c_min, c_kwh     = _charging(20, 80, car, kw_real)
         charge_end       = charge_hour + c_min / 60
 
@@ -637,6 +643,9 @@ def create_plan(req: PlanRequest) -> PlanResponse:
     lang           = normalize_lang(req.lang)
     networks       = req.charger_networks or None
     max_km_per_day = req.max_km_per_day
+    min_kw_dc           = CHARGER_STARS_TO_KW.get(req.min_stars_charger, 50)
+    min_rating_hotel    = STARS_TO_RATING.get(req.min_stars_hotel, 3.5)
+    min_rating_rest     = STARS_TO_RATING.get(req.min_stars_restaurant, 3.5)
 
     if req.battery_kwh and req.consumption_kwh_100km and req.peak_charge_kw:
         sus = req.sustained_charge_kw or round(req.peak_charge_kw * 0.65)
@@ -722,9 +731,10 @@ def create_plan(req: PlanRequest) -> PlanResponse:
 
         if soc_at_lunch >= 10:
             # B-a: arriba al dinar amb bateria → dinar = parada de càrrega + restaurant
-            charger, kw_real = _resolve_charger(rc, km_to_lunch, networks=networks)
+            charger, kw_real = _resolve_charger(rc, km_to_lunch, networks=networks, min_kw=min_kw_dc)
             lunch_stop, c_kwh, lunch_end = _make_lunch_stop(
                 charger, kw_real, soc_at_lunch, lunch_mid - 0.5, car, km_pos=round(km_to_lunch, 1), lang=lang, route_coords=rc,
+                min_rating_restaurant=min_rating_rest,
             )
             total_dc_kwh += c_kwh
             stops.append(lunch_stop)
@@ -734,7 +744,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
             # B-b: no arriba al dinar → càrrega mínima pre-dinar per arribar ~20% al restaurant
             km_to_20     = (cur_soc - 20) * km_per_pct
             stop_hour    = cur_hour + km_to_20 / avg_speed
-            charger, kw_real = _resolve_charger(rc, km_to_20, networks=networks)
+            charger, kw_real = _resolve_charger(rc, km_to_20, networks=networks, min_kw=min_kw_dc)
 
             # Carrega just el necessari per arribar al dinar amb ~20% (+ 5% marge)
             km_precharge_to_lunch = km_to_lunch - km_to_20
@@ -779,10 +789,11 @@ def create_plan(req: PlanRequest) -> PlanResponse:
 
             elif soc_at_lunch_now >= 15 and lunch_arrival <= lunch_mid + 0.75:
                 # Fusiona dinar + càrrega + restaurant
-                charger2, kw_real2 = _resolve_charger(rc, cur_km + km_to_lunch_now, networks=networks)
+                charger2, kw_real2 = _resolve_charger(rc, cur_km + km_to_lunch_now, networks=networks, min_kw=min_kw_dc)
                 lunch_stop, c_kwh2, lunch_end = _make_lunch_stop(
                     charger2, kw_real2, max(10, soc_at_lunch_now), lunch_arrival, car,
                     km_pos=round(cur_km + km_to_lunch_now, 1), lang=lang, route_coords=rc,
+                    min_rating_restaurant=min_rating_rest,
                 )
                 total_dc_kwh += c_kwh2
                 stops.append(lunch_stop)
@@ -833,14 +844,16 @@ def create_plan(req: PlanRequest) -> PlanResponse:
                 pre_arrived, pre_fh, pre_fs, pre_fkm, pre_dc = _drive_segment(
                     stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc,
                     lang=lang, target_km=lunch_km_abs, max_daily_km=day_budget, networks=networks,
+                    min_kw_dc=min_kw_dc,
                 )
                 total_dc_kwh += pre_dc
 
                 if pre_arrived:
-                    charger_l, kw_real_l = _resolve_charger(rc, pre_fkm, networks=networks)
+                    charger_l, kw_real_l = _resolve_charger(rc, pre_fkm, networks=networks, min_kw=min_kw_dc)
                     lunch_obj, c_kwh_l, lunch_end = _make_lunch_stop(
                         charger_l, kw_real_l, max(10, pre_fs), lunch_mid - 0.5, car,
                         km_pos=round(pre_fkm, 1), lang=lang, route_coords=rc,
+                        min_rating_restaurant=min_rating_rest,
                     )
                     total_dc_kwh += c_kwh_l
                     stops.append(lunch_obj)
@@ -849,6 +862,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
                     arrived, fh, fs, fkm, extra_dc = _drive_segment(
                         stops, pre_fkm, 80, lunch_end, dist_km, car, avg_speed, rc,
                         lang=lang, max_daily_km=day_budget - km_used_pre_lunch, networks=networks,
+                        min_kw_dc=min_kw_dc,
                     )
                     total_dc_kwh += extra_dc
                 else:
@@ -858,12 +872,14 @@ def create_plan(req: PlanRequest) -> PlanResponse:
                 arrived, fh, fs, fkm, extra_dc = _drive_segment(
                     stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc,
                     lang=lang, max_daily_km=day_budget, networks=networks,
+                    min_kw_dc=min_kw_dc,
                 )
                 total_dc_kwh += extra_dc
         else:
             arrived, fh, fs, fkm, extra_dc = _drive_segment(
                 stops, cur_km, cur_soc, cur_hour, dist_km, car, avg_speed, rc,
                 lang=lang, max_daily_km=day_budget, networks=networks,
+                min_kw_dc=min_kw_dc,
             )
             total_dc_kwh += extra_dc
 
@@ -888,7 +904,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
             alt_km   = max(0.0, min(float(dist_km) - 1.0, fkm + km_offset))
             alt_hour = fh - km_offset / avg_speed
             alt_soc  = min(95, max(RESERVE_SOC, round(fs + km_offset / (car["range_km"] / 85))))
-            hotel_stop = _make_hotel_stop(rc, alt_km, alt_soc, alt_hour, lang=lang)
+            hotel_stop = _make_hotel_stop(rc, alt_km, alt_soc, alt_hour, lang=lang, min_rating_hotel=min_rating_hotel)
             if hotel_stop:
                 fkm = alt_km
                 break
