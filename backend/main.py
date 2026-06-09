@@ -429,6 +429,40 @@ def _find_hotels(lat: float, lon: float, max_results: int = 6, min_rating: float
     return hotels
 
 
+def _hotel_stop_from_combo(
+    hotel: dict,
+    charger: dict,
+    walk_min: float | None,
+    soc_arrival: int,
+    arrival_hour: float,
+    km_pos: float,
+    lang: str,
+) -> PlanStop:
+    rat_str  = f" · {hotel['rating']}/5" if hotel.get("rating") else ""
+    name     = f"{hotel['name']}{rat_str}"
+    parts    = (hotel.get("vicinity") or "").split(",")
+    location = (parts[-2].strip() if len(parts) >= 2 else parts[0].strip()) or None
+    kw       = charger["power_kw"]
+    op       = charger.get("operator") or charger["name"]
+    wm       = int(walk_min) if walk_min is not None else "?"
+    desc     = _t(lang, "hotel_desc", hotel=hotel["name"], walk_min=wm, charger=f"{op} {kw} kW")
+    return PlanStop(
+        type="hotel",
+        name=name,
+        description=desc,
+        location=location,
+        arrival_time=_fmt(arrival_hour),
+        departure_time="09:00",
+        battery_arrival=soc_arrival,
+        battery_departure=95,
+        lat=charger["lat"],
+        lon=charger["lon"],
+        km_pos=km_pos,
+        walk_to_lat=hotel["lat"],
+        walk_to_lon=hotel["lon"],
+    )
+
+
 def _make_hotel_stop(
     route_coords: list | None,
     km_pos: float,
@@ -436,17 +470,34 @@ def _make_hotel_stop(
     arrival_hour: float,
     lang: str = "ca",
     min_rating_hotel: float = 3.5,
+    networks: list[str] | None = None,
 ) -> PlanStop | None:
     """
-    Cerca hotel + carregador accessible a peu. Retorna None si no en troba cap combo vàlid.
-    Itera pels millors hotels fins trobar un amb carregador a ≤MAX_WALK_MINUTES a peu.
+    Cerca hotel + carregador accessible a peu.
+
+    Estratègia 1 (quan hi ha filtre de xarxa): carregador preferit → hotel proper.
+    Estratègia 2 (fallback): hotel → carregador proper qualsevol.
     """
     if not route_coords:
         return None
 
     lon, lat = _coords_at_km(route_coords, km_pos)
-    hotels   = _find_hotels(lat, lon, min_rating=min_rating_hotel)
 
+    # ── Estratègia 1: carregador de la xarxa preferida → hotel a peu ─────────
+    if networks:
+        charger = _find_charger(lat, lon, min_kw=22, networks=networks)
+        if charger and charger.get("lat") and charger.get("lon"):
+            clat, clon = charger["lat"], charger["lon"]
+            nearby_hotels = _find_hotels(clat, clon, min_rating=min_rating_hotel)
+            for hotel in nearby_hotels:
+                hlat, hlon = hotel["lat"], hotel["lon"]
+                walk_min = _walking_minutes(clat, clon, hlat, hlon)
+                if walk_min is not None and walk_min > MAX_WALK_MINUTES:
+                    continue
+                return _hotel_stop_from_combo(hotel, charger, walk_min, soc_arrival, arrival_hour, km_pos, lang)
+
+    # ── Estratègia 2: hotel → carregador proper (qualsevol xarxa) ────────────
+    hotels = _find_hotels(lat, lon, min_rating=min_rating_hotel)
     for hotel in hotels:
         hlat = hotel["lat"]
         hlon = hotel["lon"]
@@ -462,35 +513,11 @@ def _make_hotel_stop(
 
         walk_min = _walking_minutes(clat, clon, hlat, hlon)
         if walk_min is not None and walk_min > MAX_WALK_MINUTES:
-            continue  # carregador massa lluny caminant per a aquest hotel
+            continue
 
-        # Combo vàlid — construïm la parada
-        rat_str  = f" · {hotel['rating']}/5" if hotel.get("rating") else ""
-        name     = f"{hotel['name']}{rat_str}"
-        parts    = (hotel.get("vicinity") or "").split(",")
-        location = (parts[-2].strip() if len(parts) >= 2 else parts[0].strip()) or None
-        kw       = charger_near["power_kw"]
-        op       = charger_near.get("operator") or charger_near["name"]
-        wm       = int(walk_min) if walk_min else "?"
-        desc     = _t(lang, "hotel_desc", hotel=hotel["name"], walk_min=wm, charger=f"{op} {kw} kW")
+        return _hotel_stop_from_combo(hotel, charger_near, walk_min, soc_arrival, arrival_hour, km_pos, lang)
 
-        return PlanStop(
-            type="hotel",
-            name=name,
-            description=desc,
-            location=location,
-            arrival_time=_fmt(arrival_hour),
-            departure_time="09:00",
-            battery_arrival=soc_arrival,
-            battery_departure=95,
-            lat=clat,
-            lon=clon,
-            km_pos=km_pos,
-            walk_to_lat=hlat,
-            walk_to_lon=hlon,
-        )
-
-    return None  # cap hotel proper té carregador accessible a peu
+    return None
 
 
 def _charger_desc(charger: dict | None, c_min: int, from_soc: int, to_soc: int, lang: str = "ca") -> tuple[str, str | None]:
@@ -914,7 +941,7 @@ def create_plan(req: PlanRequest) -> PlanResponse:
             alt_km   = max(0.0, min(float(dist_km) - 1.0, fkm + km_offset))
             alt_hour = fh - km_offset / avg_speed
             alt_soc  = min(95, max(RESERVE_SOC, round(fs + km_offset / (car["range_km"] / 85))))
-            hotel_stop = _make_hotel_stop(rc, alt_km, alt_soc, alt_hour, lang=lang, min_rating_hotel=min_rating_hotel)
+            hotel_stop = _make_hotel_stop(rc, alt_km, alt_soc, alt_hour, lang=lang, min_rating_hotel=min_rating_hotel, networks=networks)
             if hotel_stop:
                 fkm = alt_km
                 break
